@@ -88,6 +88,7 @@ class csaferowerThread : public QThread {
     void onDistance(double distance);
     void onPace(double pace);
     void onStatus(uint16_t status);
+    void onSpeed(double speed);
 
   private:
     // Utility and BG Thread functions
@@ -166,6 +167,7 @@ class csaferower : public rower {
     void onDistance(double distance);
     void onPace(double pace);
     void onStatus(uint16_t status);
+    void onSpeed(double speed);
 
   public slots:
     void deviceDiscovered(const QBluetoothDeviceInfo &device);

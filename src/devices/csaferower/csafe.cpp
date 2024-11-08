@@ -70,6 +70,9 @@ csafe::csafe() {
     cmds["CSAFE_GETHRCUR_CMD"] = populateCmd(0xb0, QList<int>());
     cmds["CSAFE_GETPOWER_CMD"] = populateCmd(0xb4, QList<int>());
     cmds["CSAFE_GETSTATUS_CMD"] = populateCmd(0x80, QList<int>());
+    cmds["CSAFE_GETHORIZONTAL_CMD"] = populateCmd(0xA1, QList<int>());
+    cmds["CSAFE_GETSPEED_CMD"] = populateCmd(0xA5, QList<int>());
+
 
     // Response Data to Short Commands
     resp[0x80] = qMakePair(QString("CSAFE_GETSTATUS_CMD"), QList<int>() << 0);
@@ -90,6 +93,7 @@ csafe::csafe() {
     resp[0xA1] = qMakePair(QString("CSAFE_GETHORIZONTAL_CMD"), QList<int>() << 2 << 1);
     resp[0xA3] = qMakePair(QString("CSAFE_GETCALORIES_CMD"), QList<int>() << 2);
     resp[0xA4] = qMakePair(QString("CSAFE_GETPROGRAM_CMD"), QList<int>() << 1);
+    resp[0xA5] = qMakePair(QString("CSAFE_GETSPEED_CMD"), QList<int>() << 2 << 1);
     resp[0xA6] = qMakePair(QString("CSAFE_GETPACE_CMD"), QList<int>() << 2 << 1);
     resp[0xA7] = qMakePair(QString("CSAFE_GETCADENCE_CMD"), QList<int>() << 2 << 1);
     resp[0xAB] = qMakePair(QString("CSAFE_GETUSERINFO_CMD"), QList<int>() << 2 << 1 << 1 << 1);
@@ -197,7 +201,7 @@ QString csafe::bytes2ascii(const QVector<quint8> &raw_bytes) {
     return word;
 }
 
-QByteArray csafe::write(const QStringList &arguments) {
+QByteArray csafe::write(const QStringList &arguments, bool surround_msg = true) {
     int i = 0;
     QVector<quint8> message;
     int wrapper = 0;
@@ -287,6 +291,8 @@ QByteArray csafe::write(const QStringList &arguments) {
     message.prepend(Standard_Frame_Start_Flag); // start frame
     message.append(Stop_Frame_Flag);            // stop frame
 
+    if (surround_msg){
+
     if (message.size() > 96) // check for frame size (96 bytes)
     {
         qWarning("Message is too long: %d", message.size());
@@ -310,6 +316,7 @@ QByteArray csafe::write(const QStringList &arguments) {
         qWarning("Message too long. Message length: %d", message.size());
         message.clear();
     }
+    }
 
     QByteArray ret;
     foreach (int a, message) { ret.append(a); }
@@ -330,6 +337,9 @@ QVector<quint8> csafe::check_message(QVector<quint8> message) {
 
         checksum ^= message[i]; // calculate checksum
 
+    //        qWarning("Checksumming : 0x%02X  pos: %d   checksum 0x%02X", message[i], i, checksum);
+
+
         ++i;
     }
 
@@ -348,14 +358,24 @@ QVariantMap csafe::read(const QVector<quint8> &transmission) {
     QVector<quint8> message;
     bool stopfound = false;
 
-    int startflag = transmission[1];
-
     int j = 0;
-    if (startflag == Extended_Frame_Start_Flag) {
-        j = 4;
-    } else if (startflag == Standard_Frame_Start_Flag) {
-        j = 2;
-    } else {
+    while (j < transmission.size()) {
+        int startflag = transmission[j];
+  //      qWarning("Test start bit : %d", startflag);
+
+        if (startflag == Extended_Frame_Start_Flag) {
+            j = j + 3;
+            break;
+        } else if (startflag == Standard_Frame_Start_Flag) {
+            qWarning("Start found at pos : %d", j);
+            ++j;
+            break;
+        } else {
+            ++j;
+        }
+    }
+
+    if (j >= transmission.size()) {
         qWarning("No Start Flag found.");
         return QVariantMap();
     }
@@ -366,6 +386,7 @@ QVariantMap csafe::read(const QVector<quint8> &transmission) {
             break;
         }
         message.append(transmission[j]);
+//        qWarning("appending : 0x%02X  pos: %d  ",transmission[j], j);
         ++j;
     }
 
@@ -373,6 +394,12 @@ QVariantMap csafe::read(const QVector<quint8> &transmission) {
         qWarning("No Stop Flag found.");
         return QVariantMap();
     }
+    
+   // qDebug() << " message >> " << message.toHex(' ');
+   // qWarning(  "message in hex: %s" , QByteArray::fromRawData(reinterpret_cast<const char*>(message.data()), message.size()).toHex(' '));
+//    qWarning("Test finigh bit : 0x%02X    pos: 0x%02X", message[message.size()] ,  message.size());
+    
+
 
     message = check_message(message);
     int status = message.takeFirst();

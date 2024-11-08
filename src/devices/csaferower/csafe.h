@@ -34,7 +34,7 @@ class csafe {
 
   public:
     csafe();
-    QByteArray write(const QStringList &arguments);
+    QByteArray write(const QStringList &arguments , bool surround_msg);
     QVector<quint8> check_message(QVector<quint8> message);
     QVariantMap read(const QVector<quint8> &transmission);
 };

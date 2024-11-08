@@ -33,6 +33,11 @@ void csaferower::onPace(double pace) {
     qDebug() << "Current Speed calculated:" << Speed.value() << pace;
 }
 
+void csaferower::onSpeed(double speed) {
+    qDebug() << "Current Speed received:" << speed;
+    //if(distanceIsChanging)
+        Speed = speed;
+}
 
 void csaferower::onPower(double power) {
     qDebug() << "Current Power received:" << power;
@@ -103,17 +108,41 @@ void csaferowerThread::run() {
 
     openPort();
     csafe *aa = new csafe();
+    int p = 0;
     while (1) {
+
+
         QStringList command;
-        command << "CSAFE_PM_GET_WORKTIME";
-        command << "CSAFE_PM_GET_WORKDISTANCE";
-        command << "CSAFE_GETCADENCE_CMD";
-        command << "CSAFE_GETPOWER_CMD";
-        command << "CSAFE_GETCALORIES_CMD";
-        command << "CSAFE_GETHRCUR_CMD";
-        command << "CSAFE_GETPACE_CMD";
-        command << "CSAFE_GETSTATUS_CMD";
-        QByteArray ret = aa->write(command);
+        //        command << "CSAFE_PM_GET_WORKTIME";
+        //       command << "CSAFE_PM_GET_WORKDISTANCE";
+        //        command << "CSAFE_GETCADENCE_CMD";  //not supported
+        if (p == 0) {
+            command << "CSAFE_GETPOWER_CMD";
+        }
+        if (p == 1) {
+            command << "CSAFE_GETSPEED_CMD";
+        } else if (p == 2) {
+            command << "CSAFE_GETCALORIES_CMD";
+        } else if (p == 3) {
+            command << "CSAFE_GETHRCUR_CMD";
+        } else if (p == 4) {
+            command << "CSAFE_GETPACE_CMD";
+        } else if (p == 5) {
+            command << "CSAFE_GETSTATUS_CMD";
+        }
+        if (p == 6) {
+            command << "CSAFE_GETHORIZONTAL_CMD";
+        }
+        p++;
+        if (p > 6)
+            p = 0;
+
+        //        command << "CSAFE_GETPOWER_CMD";
+        //        command << "CSAFE_GETCALORIES_CMD";
+        //        command << "CSAFE_GETHRCUR_CMD";
+        //        command << "CSAFE_GETPACE_CMD";
+        //        command << "CSAFE_GETSTATUS_CMD";
+        QByteArray ret = aa->write(command,false);
 
         qDebug() << " >> " << ret.toHex(' ');
         rawWrite((uint8_t *)ret.data(), ret.length());
@@ -131,6 +160,9 @@ void csaferowerThread::run() {
         if (f["CSAFE_GETPACE_CMD"].isValid()) {
             emit onPace(f["CSAFE_GETPACE_CMD"].value<QVariantList>()[0].toDouble());
         }
+        if (f["CSAFE_GETSPEED_CMD"].isValid()) {
+            emit onSpeed(f["CSAFE_GETSPEED_CMD"].value<QVariantList>()[0].toDouble());
+        }
         if (f["CSAFE_GETPOWER_CMD"].isValid()) {
             emit onPower(f["CSAFE_GETPOWER_CMD"].value<QVariantList>()[0].toDouble());
         }
@@ -142,6 +174,9 @@ void csaferowerThread::run() {
         }
         if (f["CSAFE_PM_GET_WORKDISTANCE"].isValid()) {
             emit onDistance(f["CSAFE_PM_GET_WORKDISTANCE"].value<QVariantList>()[0].toDouble());
+        }
+        if (f["CSAFE_GETHORIZONTAL_CMD"].isValid()) {
+            emit onDistance(f["CSAFE_GETHORIZONTAL_CMD"].value<QVariantList>()[0].toDouble());
         }
         if (f["CSAFE_GETSTATUS_CMD"].isValid()) {
             emit onStatus(f["CSAFE_GETSTATUS_CMD"].value<QVariantList>()[0].toUInt());
@@ -176,6 +211,10 @@ int csaferowerThread::openPort() {
     int ldisc = N_TTY;                    // LINUX
 #endif
 
+    QString deviceFilename = "/dev/ttyV1";
+    qDebug() << "Device Filename:" << deviceFilename;
+    qDebug() << QStringLiteral("Opening CSAVE communication...");
+
     if ((devicePort = open(deviceFilename.toLatin1(), O_RDWR | O_NOCTTY | O_NONBLOCK)) == -1)
         return errno;
 
@@ -190,7 +229,7 @@ int csaferowerThread::openPort() {
     // set raw mode i.e. ignbrk, brkint, parmrk, istrip, inlcr, igncr, icrnl, ixon
     //                   noopost, cs8, noecho, noechonl, noicanon, noisig, noiexn
     cfmakeraw(&deviceSettings);
-    cfsetspeed(&deviceSettings, B2400);
+    cfsetspeed(&deviceSettings, B9600);
 
     // further attributes
     deviceSettings.c_iflag &=
