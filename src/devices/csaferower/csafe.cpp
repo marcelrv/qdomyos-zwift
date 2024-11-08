@@ -357,17 +357,13 @@ QVector<quint8> csafe::check_message(QVector<quint8> message) {
 QVariantMap csafe::read(const QVector<quint8> &transmission) {
     QVector<quint8> message;
     bool stopfound = false;
-
     int j = 0;
     while (j < transmission.size()) {
         int startflag = transmission[j];
-  //      qWarning("Test start bit : %d", startflag);
-
         if (startflag == Extended_Frame_Start_Flag) {
             j = j + 3;
             break;
         } else if (startflag == Standard_Frame_Start_Flag) {
-            qWarning("Start found at pos : %d", j);
             ++j;
             break;
         } else {
@@ -386,7 +382,6 @@ QVariantMap csafe::read(const QVector<quint8> &transmission) {
             break;
         }
         message.append(transmission[j]);
-//        qWarning("appending : 0x%02X  pos: %d  ",transmission[j], j);
         ++j;
     }
 
@@ -395,12 +390,7 @@ QVariantMap csafe::read(const QVector<quint8> &transmission) {
         return QVariantMap();
     }
     
-   // qDebug() << " message >> " << message.toHex(' ');
-   // qWarning(  "message in hex: %s" , QByteArray::fromRawData(reinterpret_cast<const char*>(message.data()), message.size()).toHex(' '));
-//    qWarning("Test finigh bit : 0x%02X    pos: 0x%02X", message[message.size()] ,  message.size());
-    
-
-
+ 
     message = check_message(message);
     int status = message.takeFirst();
 
