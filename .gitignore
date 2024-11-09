@@ -18,6 +18,13 @@ src/build/*
 
 src/debug-*
 
+src/*.log
+src/*.jpg
+src/*.fit
+src/settings/*
+src/training/*
+src/profiles/*
+
 src/secret.h
 
 *.swo
