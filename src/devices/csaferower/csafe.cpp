@@ -73,7 +73,6 @@ csafe::csafe() {
     cmds["CSAFE_GETHORIZONTAL_CMD"] = populateCmd(0xA1, QList<int>());
     cmds["CSAFE_GETSPEED_CMD"] = populateCmd(0xA5, QList<int>());
 
-
     // Response Data to Short Commands
     resp[0x80] = qMakePair(QString("CSAFE_GETSTATUS_CMD"), QList<int>() << 0);
     resp[0x81] = qMakePair(QString("CSAFE_RESET_CMD"), QList<int>() << 0);
@@ -146,7 +145,9 @@ QList<QList<int>> csafe::populateCmd(int First, QList<int> Second, int Third) {
     second.clear();
     third.clear();
     first.append(First);
-    foreach (int a, Second) { second.append(a); }
+    foreach (int a, Second) {
+        second.append(a);
+    }
     third.append(Third);
     ret.append(first);
     ret.append(second);
@@ -161,7 +162,9 @@ QList<QList<int>> csafe::populateCmd(int First, QList<int> Second) {
     first.clear();
     second.clear();
     first.append(First);
-    foreach (int a, Second) { second.append(a); }
+    foreach (int a, Second) {
+        second.append(a);
+    }
     ret.append(first);
     ret.append(second);
     return ret;
@@ -291,35 +294,37 @@ QByteArray csafe::write(const QStringList &arguments, bool surround_msg = true) 
     message.prepend(Standard_Frame_Start_Flag); // start frame
     message.append(Stop_Frame_Flag);            // stop frame
 
-    if (surround_msg){
+    if (surround_msg) {
 
-    if (message.size() > 96) // check for frame size (96 bytes)
-    {
-        qWarning("Message is too long: %d", message.size());
-    }
-
-    int maxmessage = qMax(message.size() + 1, maxresponse); // report IDs
-
-    if (maxmessage <= 21) {
-        message.prepend(0x01);
-        message.append(QVector<quint8>(21 - message.size()));
-    } else if (maxmessage <= 63) {
-        message.prepend(0x04);
-        message.append(QVector<quint8>(63 - message.size()));
-    } else if ((message.size() + 1) <= 121) {
-        message.prepend(0x02);
-        message.append(QVector<quint8>(121 - message.size()));
-        if (maxresponse > 121) {
-            qWarning("Response may be too long to receive. Max possible length: %d", maxresponse);
+        if (message.size() > 96) // check for frame size (96 bytes)
+        {
+            qWarning("Message is too long: %d", message.size());
         }
-    } else {
-        qWarning("Message too long. Message length: %d", message.size());
-        message.clear();
-    }
+
+        int maxmessage = qMax(message.size() + 1, maxresponse); // report IDs
+
+        if (maxmessage <= 21) {
+            message.prepend(0x01);
+            message.append(QVector<quint8>(21 - message.size()));
+        } else if (maxmessage <= 63) {
+            message.prepend(0x04);
+            message.append(QVector<quint8>(63 - message.size()));
+        } else if ((message.size() + 1) <= 121) {
+            message.prepend(0x02);
+            message.append(QVector<quint8>(121 - message.size()));
+            if (maxresponse > 121) {
+                qWarning("Response may be too long to receive. Max possible length: %d", maxresponse);
+            }
+        } else {
+            qWarning("Message too long. Message length: %d", message.size());
+            message.clear();
+        }
     }
 
     QByteArray ret;
-    foreach (int a, message) { ret.append(a); }
+    foreach (int a, message) {
+        ret.append(a);
+    }
     return ret;
 }
 
@@ -454,4 +459,29 @@ QVariantMap csafe::read(const QVector<quint8> &transmission) {
     }
 
     return response;
+}
+
+QString csafe::statusByteToText(u_int8_t status) {
+    switch (status) {
+    case 0x00:
+        return "Error";
+    case 0x01:
+        return "Ready";
+    case 0x02:
+        return "Idle";
+    case 0x03:
+        return "Have ID";
+    case 0x05:
+        return "In Use";
+    case 0x06:
+        return "Pause";
+    case 0x07:
+        return "Finish";
+    case 0x08:
+        return "Manual";
+    case 0x09:
+        return "Off line";
+    default:
+        return "Unknown";
+    }
 }
