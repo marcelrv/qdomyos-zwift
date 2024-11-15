@@ -1,32 +1,40 @@
-
-
-#include serialport.h
-
+#include "serialport.h"
 
 /* ----------------------------------------------------------------------
  * CONSTRUCTOR/DESRTUCTOR
  * ---------------------------------------------------------------------- */
-Serialport::Serialport(QObject *parent, QString devname) : QThread(parent) {
- 
-    setDevice(devname);
-    deviceStatus = 0;
-    this->parent = parent;
- 
+Serialport::Serialport(QString deviceFilename, speed_t baudRatec) { 
+
+    setDevice(deviceFilename);
+    this->baudRate = baudRate;
+ }
+
+Serialport::~Serialport() {
 }
 
-Serialport::~Serialport() {}
+void Serialport::setTimeout(int timeout) { this->_timeout = timeout; }
 
-void Serialport::setDevice(QString devname) {
-    // if not null, replace existing if set, otherwise set
-    deviceFilename = devname;
+void Serialport::setDevice(const QString &devname) {
+    if (!devname.isEmpty()) {
+        deviceFilename = devname;
+    }
 }
 
+void Serialport::setEndChar(uint8_t endChar) { this->endChar = endChar; }
+
+bool Serialport::isOpen() const {
+#ifdef WIN32
+    return (devicePort != INVALID_HANDLE_VALUE); // Checks if the Windows handle is valid
+#else
+    return (devicePort != -1); // Checks if the file descriptor is valid on Linux/macOS
+#endif
+}
 
 int Serialport::closePort() {
 #ifdef WIN32
     return (int)!CloseHandle(devicePort);
 #else
-    tcflush(devicePort, TCIOFLUSH); // clear out the garbage
+    tcflush(devicePort, TCIOFLUSH); // Clear out the buffer
     return close(devicePort);
 #endif
 }
@@ -42,7 +50,7 @@ int Serialport::openPort() {
 #if defined(Q_OS_MACX)
     int ldisc = TTYDISC;
 #else
-    int ldisc = N_TTY;                    // LINUX
+    int ldisc = N_TTY; // LINUX
 #endif
 
     if ((devicePort = open(deviceFilename.toLatin1(), O_RDWR | O_NOCTTY | O_NONBLOCK)) == -1)
@@ -59,7 +67,7 @@ int Serialport::openPort() {
     // set raw mode i.e. ignbrk, brkint, parmrk, istrip, inlcr, igncr, icrnl, ixon
     //                   noopost, cs8, noecho, noechonl, noicanon, noisig, noiexn
     cfmakeraw(&deviceSettings);
-    cfsetspeed(&deviceSettings, B2400);
+    cfsetspeed(&deviceSettings, baudRate);
 
     // further attributes
     deviceSettings.c_iflag &=
@@ -115,7 +123,7 @@ int Serialport::openPort() {
         return -1;
 
     // so we've opened the comm port lets set it up for
-    deviceSettings.BaudRate = CBR_2400;
+    deviceSettings.BaudRate = CBR_9600;
     deviceSettings.fParity = NOPARITY;
     deviceSettings.ByteSize = 8;
     deviceSettings.StopBits = ONESTOPBIT;
@@ -151,10 +159,8 @@ int Serialport::openPort() {
     return 0;
 }
 
-int Serialport::rawWrite(uint8_t *bytes, int size) // unix!!
-{
-    qDebug() << size << QByteArray((const char *)bytes, size).toHex(' ');
-
+int Serialport::rawWrite(uint8_t *bytes, int size) {
+    qDebug() << "Writing data:" << QByteArray((const char *)bytes, size).toHex();
     int rc = 0;
 
 #ifdef Q_OS_ANDROID
@@ -191,7 +197,7 @@ int Serialport::rawWrite(uint8_t *bytes, int size) // unix!!
     return rc;
 }
 
-int Serialport::rawRead(uint8_t bytes[], int size) {
+int Serialport::rawRead(uint8_t bytes[], int size, bool line) {
     int rc = 0;
 
 #ifdef Q_OS_ANDROID
@@ -267,7 +273,7 @@ int Serialport::rawRead(uint8_t bytes[], int size) {
     for (i = 0; i < size; i++) {
         timeout = 0;
         rc = 0;
-        while (rc == 0 && timeout < CT_READTIMEOUT) {
+        while (rc == 0 && timeout < _timeout) {
             rc = read(devicePort, &byte, 1);
             if (rc == -1)
                 return -1; // error!
@@ -276,10 +282,13 @@ int Serialport::rawRead(uint8_t bytes[], int size) {
                 timeout += 50;
             } else {
                 bytes[i] = byte;
+                if (line && endChar == byte) {
+                    return i + 1;
+                }
             }
         }
-        if (timeout >= CT_READTIMEOUT)
-            return -1; // we timed out!
+        if (timeout >= _timeout)
+            return i > 0 ? i : -1;
     }
 
     qDebug() << i << QString::fromLocal8Bit((const char *)bytes, i);
@@ -287,37 +296,4 @@ int Serialport::rawRead(uint8_t bytes[], int size) {
     return i;
 
 #endif
-}
-
-// check to see of there is a port at the device specified
-// returns true if the device exists and false if not
-bool Serialport::discover(QString filename) {
-    uint8_t *greeting = (uint8_t *)"RacerMate";
-    uint8_t handshake[7];
-    int rc;
-
-    if (filename.isEmpty())
-        return false; // no null filenames thanks
-
-    // lets set the port
-    setDevice(filename);
-
-    // lets open it
-    openPort();
-
-    // send a probe
-    if ((rc = rawWrite(greeting, 9)) == -1) {
-        closePort();
-        return false;
-    }
-
-    // did we get something back from the device?
-    if ((rc = rawRead(handshake, 6)) < 6) {
-        closePort();
-        return false;
-    }
-
-    closePort();
-
- 
 }

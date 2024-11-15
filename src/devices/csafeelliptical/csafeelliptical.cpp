@@ -40,6 +40,8 @@ csafeelliptical::csafeelliptical(bool noWriteResistance, bool noHeartService, in
     connect(t, &csafeellipticalThread::onPace, this, &csafeelliptical::onPace);
     connect(t, &csafeellipticalThread::onStatus, this, &csafeelliptical::onStatus);
     connect(t, &csafeellipticalThread::onSpeed, this, &csafeelliptical::onSpeed);
+    connect(t, &csafeellipticalThread::portavailable, this, &csafeelliptical::portavailable);
+
     emit debug(QStringLiteral("init  bikeResistanceOffset ") + QString::number(bikeResistanceOffset));
     emit debug(QStringLiteral("init  bikeResistanceGain ") + QString::number(bikeResistanceGain));
     t->start();
@@ -110,6 +112,7 @@ void csafeelliptical::onCalories(double calories) {
 
 void csafeelliptical::onDistance(double distance) {
     qDebug() << "Current Distance received:" << distance / 1000.0;
+    Distance = distance / 1000.0;
 
     if (distance != distanceReceived.value()) {
         distanceIsChanging = true;
@@ -125,24 +128,68 @@ void csafeelliptical::onDistance(double distance) {
     }
 }
 
-void csafeelliptical::onStatus(uint16_t status) { qDebug() << "Current Status received:" << status; }
+void csafeelliptical::onStatus(char status) {
+    qDebug() << "Current Status value received:" << status;
+    QString statusString = csafe::statusByteToText(status);
+    qDebug() << "Current Status received:" << statusString;
+
+    /*
+        0x00: Error
+    0x01: Ready
+    0x02: Idle
+    0x03: Have ID
+    0x05: In Use
+    0x06: Pause
+    0x07: Finish
+    0x08: Manual
+    0x09: Off line
+    */
+}
+
+void csafeelliptical::portavailable(bool available) {
+    if (available) {
+        emit debug(QStringLiteral("CSAFE port available"));
+        _connected = true;
+    } else {
+        emit debug(QStringLiteral("CSAFE port not available"));
+        _connected = false;
+    }
+}
 
 csafeellipticalThread::csafeellipticalThread() {}
 
 void csafeellipticalThread::run() {
     QSettings settings;
-    /*devicePort =
-        settings.value(QZSettings::computrainer_serialport, QZSettings::default_computrainer_serialport).toString();*/
 
-    openPort();
-    csafe *aa = new csafe();
+    QString deviceFilename =
+        settings.value(QZSettings::csafe_elliptical_port, QZSettings::default_csafe_elliptical_port).toString();
+
+    int rc = 0;
+
+    Serialport *serial = new Serialport(deviceFilename, B9600);
+    serial->setEndChar(0xf2); // end of frame for CSAFE
+
+    csafe *csafeInstance = new csafe();
     int p = 0;
+    int connectioncounter = 20;
+    int lastStatus = -1;
     while (1) {
 
+        if (connectioncounter > 10 || !connectioncounter < 0) { //! serial->isOpen()) {
+            rc = serial->openPort();
+            if (rc != 0) {
+                emit portavailable(false);
+                connectioncounter++;
+                QThread::msleep(connectioncounter * 1000);
+                continue;
+            } else {
+                emit portavailable(true);
+                connectioncounter = 0;
+            }
+        }
+
         QStringList command;
-        //        command << "CSAFE_PM_GET_WORKTIME";
-        //       command << "CSAFE_PM_GET_WORKDISTANCE";
-        //        command << "CSAFE_GETCADENCE_CMD";  //not supported
+
         if (p == 0) {
             command << "CSAFE_GETPOWER_CMD";
         }
@@ -158,6 +205,7 @@ void csafeellipticalThread::run() {
 
         } else if (p == 5) {
             command << "CSAFE_GETSTATUS_CMD";
+            lastStatus =-1; // ensures the status is always sent
         }
         if (p == 6) {
             command << "CSAFE_GETHORIZONTAL_CMD";
@@ -166,23 +214,28 @@ void csafeellipticalThread::run() {
         if (p > 6)
             p = 0;
 
-        //        command << "CSAFE_GETPOWER_CMD";
-        //        command << "CSAFE_GETCALORIES_CMD";
-        //        command << "CSAFE_GETHRCUR_CMD";
-        //        command << "CSAFE_GETPACE_CMD";
-        //        command << "CSAFE_GETSTATUS_CMD";
-        QByteArray ret = aa->write(command, false);
+        QByteArray ret = csafeInstance->write(command, false);
 
-        qDebug() << " >> " << ret.toHex(' ');
-        rawWrite((uint8_t *)ret.data(), ret.length());
-        static uint8_t rx[100];
-        rawRead(rx, 100);
-        qDebug() << " << " << QByteArray::fromRawData((const char *)rx, 64).toHex(' ');
+        qDebug() << "CSAFE >> " << ret.toHex(' ');
+        rc = serial->rawWrite((uint8_t *)ret.data(), ret.length());
+        static uint8_t rx[120];
+        if (rc > 0) {
+            // qDebug() << "Sent " << rc << " bytes";
+            rc = serial->rawRead(rx, 100, true);
+            qDebug() << "CSAFE << " << QByteArray::fromRawData((const char *)rx, rc).toHex(' ');
+        }
+        if (rc < 0) {
+            qDebug() << "Error reading/writing rc=" << rc;
+            connectioncounter++;
+            continue;
+        }
+
+        // TODO: check if i needs to be set to rc to process full line
 
         QVector<quint8> v;
         for (int i = 0; i < 64; i++)
             v.append(rx[i]);
-        QVariantMap f = aa->read(v);
+        QVariantMap f = csafeInstance->read(v);
         if (f["CSAFE_GETCADENCE_CMD"].isValid()) {
             emit onCadence(f["CSAFE_GETCADENCE_CMD"].value<QVariantList>()[0].toDouble());
         }
@@ -208,201 +261,21 @@ void csafeellipticalThread::run() {
             emit onDistance(f["CSAFE_GETHORIZONTAL_CMD"].value<QVariantList>()[0].toDouble());
         }
         if (f["CSAFE_GETSTATUS_CMD"].isValid()) {
-            emit onStatus(f["CSAFE_GETSTATUS_CMD"].value<QVariantList>()[0].toUInt());
+            u_int16_t statusvalue = f["CSAFE_GETSTATUS_CMD"].value<QVariantList>()[0].toUInt();
+            qDebug() << "Status value:" << statusvalue << " lastStatus:" << lastStatus << " statusvalue & 0x0f:" << (statusvalue & 0x0f);
+            if (statusvalue != lastStatus) {
+                lastStatus = statusvalue;
+                char statusChar = static_cast<char>(statusvalue & 0x0f);
+                emit onStatus(statusChar);
+            }
         }
 
         memset(rx, 0x00, sizeof(rx));
         QThread::msleep(50);
     }
-    closePort();
+    serial->closePort();
 }
 
-int csafeellipticalThread::closePort() {
-#ifdef WIN32
-    return (int)!CloseHandle(devicePort);
-#else
-    tcflush(devicePort, TCIOFLUSH); // clear out the garbage
-    return close(devicePort);
-#endif
-}
-
-int csafeellipticalThread::openPort() {
-#ifdef Q_OS_ANDROID
-    QAndroidJniObject::callStaticMethod<void>("org/cagnulen/qdomyoszwift/csafeellipticalUSBHID", "open",
-                                              "(Landroid/content/Context;)V", QtAndroid::androidContext().object());
-#elif !defined(WIN32)
-
-    // LINUX AND MAC USES TERMIO / IOCTL / STDIO
-
-#if defined(Q_OS_MACX)
-    int ldisc = TTYDISC;
-#else
-    int ldisc = N_TTY; // LINUX
-#endif
-
-    QSettings settings;
-
-    QString deviceFilename =
-        settings.value(QZSettings::csafe_elliptical_port, QZSettings::default_csafe_elliptical_port).toString();
-
-    qDebug() << "Device Filename:" << deviceFilename;
-    qDebug() << QStringLiteral("Opening CSAVE communication...");
-
-    if ((devicePort = open(deviceFilename.toLatin1(), O_RDWR | O_NOCTTY | O_NONBLOCK)) == -1)
-        return errno;
-
-    tcflush(devicePort, TCIOFLUSH); // clear out the garbage
-
-    if (ioctl(devicePort, TIOCSETD, &ldisc) == -1)
-        return errno;
-
-    // get current settings for the port
-    tcgetattr(devicePort, &deviceSettings);
-
-    // set raw mode i.e. ignbrk, brkint, parmrk, istrip, inlcr, igncr, icrnl, ixon
-    //                   noopost, cs8, noecho, noechonl, noicanon, noisig, noiexn
-    cfmakeraw(&deviceSettings);
-    cfsetspeed(&deviceSettings, B9600);
-
-    // further attributes
-    deviceSettings.c_iflag &=
-        ~(IGNBRK | BRKINT | ICRNL | INLCR | PARMRK | INPCK | ICANON | ISTRIP | IXON | IXOFF | IXANY);
-    deviceSettings.c_iflag |= IGNPAR;
-    deviceSettings.c_cflag &= (~CSIZE & ~CSTOPB);
-    deviceSettings.c_oflag = 0;
-
-#if defined(Q_OS_MACX)
-    deviceSettings.c_cflag &= (~CCTS_OFLOW & ~CRTS_IFLOW); // no hardware flow control
-    deviceSettings.c_cflag |= (CS8 | CLOCAL | CREAD | HUPCL);
-#else
-    deviceSettings.c_cflag &= (~CRTSCTS); // no hardware flow control
-    deviceSettings.c_cflag |= (CS8 | CLOCAL | CREAD | HUPCL);
-#endif
-    deviceSettings.c_lflag = 0;
-    deviceSettings.c_cc[VSTART] = 0x11;
-    deviceSettings.c_cc[VSTOP] = 0x13;
-    deviceSettings.c_cc[VEOF] = 0x20;
-    deviceSettings.c_cc[VMIN] = 0;
-    deviceSettings.c_cc[VTIME] = 0;
-
-    // set those attributes
-    if (tcsetattr(devicePort, TCSANOW, &deviceSettings) == -1)
-        return errno;
-    tcgetattr(devicePort, &deviceSettings);
-
-    tcflush(devicePort, TCIOFLUSH); // clear out the garbage
-#else
-
-#endif
-    // success
-    return 0;
-}
-
-int csafeellipticalThread::rawWrite(uint8_t *bytes, int size) // unix!!
-{
-    qDebug() << size << QByteArray((const char *)bytes, size).toHex(' ');
-
-    int rc = 0;
-
-#ifdef Q_OS_ANDROID
-
-    QAndroidJniEnvironment env;
-    jbyteArray d = env->NewByteArray(size);
-    jbyte *b = env->GetByteArrayElements(d, 0);
-    for (int i = 0; i < size; i++)
-        b[i] = bytes[i];
-    env->SetByteArrayRegion(d, 0, size, b);
-    QAndroidJniObject::callStaticMethod<void>("org/cagnulen/qdomyoszwift/csafeellipticalUSBHID", "write", "([B)V", d);
-#elif defined(WIN32)
-    DWORD cBytes;
-    rc = WriteFile(devicePort, bytes, size, &cBytes, NULL);
-    if (!rc)
-        return -1;
-    return rc;
-
-#else
-    int ibytes;
-    ioctl(devicePort, FIONREAD, &ibytes);
-
-    // timeouts are less critical for writing, since vols are low
-    rc = write(devicePort, bytes, size);
-
-    // but it is good to avoid buffer overflow since the
-    // computrainer microcontroller has almost no RAM
-    if (rc != -1)
-        tcdrain(devicePort); // wait till its gone.
-
-    ioctl(devicePort, FIONREAD, &ibytes);
-#endif
-
-    return rc;
-}
-
-int csafeellipticalThread::rawRead(uint8_t bytes[], int size) {
-    int rc = 0;
-
-#ifdef Q_OS_ANDROID
-    int64_t start = QDateTime::currentMSecsSinceEpoch();
-    jint len = 0;
-
-    do {
-        QAndroidJniEnvironment env;
-        QAndroidJniObject dd = QAndroidJniObject::callStaticObjectMethod(
-            "org/cagnulen/qdomyoszwift/csafeellipticalUSBHID", "read", "()[B");
-        len = QAndroidJniObject::callStaticMethod<jint>("org/cagnulen/qdomyoszwift/csafeellipticalUSBHID", "readLen",
-                                                        "()I");
-        if (len > 0) {
-            jbyteArray d = dd.object<jbyteArray>();
-            jbyte *b = env->GetByteArrayElements(d, 0);
-            for (int i = 0; i < len; i++) {
-                bytes[i] = b[i];
-            }
-            qDebug() << len << QByteArray((const char *)b, len).toHex(' ');
-        }
-    } while (len == 0 && start + 2000 > QDateTime::currentMSecsSinceEpoch());
-
-    return len;
-#elif defined(WIN32)
-    Q_UNUSED(size);
-    // Readfile deals with timeouts and readyread issues
-    DWORD cBytes;
-    rc = ReadFile(devicePort, bytes, 7, &cBytes, NULL);
-    if (rc)
-        return (int)cBytes;
-    else
-        return (-1);
-
-#else
-
-    int timeout = 0, i = 0;
-    uint8_t byte;
-
-    // read one byte at a time sleeping when no data ready
-    // until we timeout waiting then return error
-    for (i = 0; i < size; i++) {
-        timeout = 0;
-        rc = 0;
-        while (rc == 0 && timeout < CT_READTIMEOUT) {
-            rc = read(devicePort, &byte, 1);
-            if (rc == -1)
-                return -1; // error!
-            else if (rc == 0) {
-                msleep(50); // sleep for 1/20th of a second
-                timeout += 50;
-            } else {
-                bytes[i] = byte;
-            }
-        }
-        if (timeout >= CT_READTIMEOUT)
-            return -1; // we timed out!
-    }
-
-    qDebug() << i << QString::fromLocal8Bit((const char *)bytes, i);
-
-    return i;
-
-#endif
-}
 
 void csafeelliptical::update() {
     QSettings settings;
@@ -411,15 +284,15 @@ void csafeelliptical::update() {
 
     update_metrics(false, watts());
 
-/*
-    qDebug() << QStringLiteral("Current speed: ") + QString::number(Speed.value());
-    qDebug() << QStringLiteral("Current incline: ") + QString::number(Inclination.value());
-    qDebug() << QStringLiteral("Current heart: ") + QString::number(Heart.value());
-    qDebug() << QStringLiteral("Current KCal: ") + QString::number(KCal.value());
-    qDebug() << QStringLiteral("Current KCal from the machine: ") + QString::number(KCal.value());
-    qDebug() << QStringLiteral("Current Distance: ") + QString::number(Distance.value());
-    qDebug() << QStringLiteral("Current Distance Calculated: ") + QString::number(Distance.value());
-*/
+    /*
+        qDebug() << QStringLiteral("Current speed: ") + QString::number(Speed.value());
+        qDebug() << QStringLiteral("Current incline: ") + QString::number(Inclination.value());
+        qDebug() << QStringLiteral("Current heart: ") + QString::number(Heart.value());
+        qDebug() << QStringLiteral("Current KCal: ") + QString::number(KCal.value());
+        qDebug() << QStringLiteral("Current KCal from the machine: ") + QString::number(KCal.value());
+        qDebug() << QStringLiteral("Current Distance: ") + QString::number(Distance.value());
+        qDebug() << QStringLiteral("Current Distance Calculated: ") + QString::number(Distance.value());
+    */
 
     /*
         if (Cadence.value() > 0) {
@@ -481,29 +354,13 @@ void csafeelliptical::update() {
                         &csafeelliptical::ftmsCharacteristicChanged);
                 this->setVirtualDevice(virtualBike, VIRTUAL_DEVICE_MODE::ALTERNATIVE);
             }
+        } else {
+            debug("not creating virtual interface... not enabled");
         }
         // ********************************************************************************************************
     }
     if (!firstStateChanged)
         emit connectedAndDiscovered();
-
-    /*        m_watt = 0.0;
-            Cadence = 0.0;
-            Speed = 0.0;
-            Distance = 0.0;
-            Heart = 75;
-            KCal = 0;
-            Inclination = 0;
-
-                emit onCadence(0.0);
-                emit onPace(0.0);
-                emit onSpeed(0.0);
-                emit onPower(0.0);
-                emit onHeart(0.0);
-                emit onCalories(0.0);
-                emit onDistance(0.0);
-                emit onStatus(1);
-    */
     firstStateChanged = 1;
     // ********************************************************************************************************
 
@@ -561,16 +418,18 @@ void csafeelliptical::changeInclinationRequested(double grade, double percentage
     emit debug(QStringLiteral("writing percentage  ") + QString::number(percentage));
 }
 
-bool csafeelliptical::connected() { return true; }
+bool csafeelliptical::connected() { return _connected; }
 
 void csafeelliptical::deviceDiscovered(const QBluetoothDeviceInfo &device) {
     emit debug(QStringLiteral("Found new device: ") + device.name() + " (" + device.address().toString() + ')');
 }
 
+/*
 void csafeelliptical::serviceDiscovered(const QBluetoothUuid &gatt) {
     emit debug(QStringLiteral("serviceDiscovered ") + gatt.toString());
 }
+*/
 
-void csafeelliptical::newPacket(QByteArray p) {}
+// void csafeelliptical::newPacket(QByteArray p) {}
 
 uint16_t csafeelliptical::watts() { return m_watt.value(); }

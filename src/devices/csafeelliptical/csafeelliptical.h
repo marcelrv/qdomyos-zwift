@@ -61,6 +61,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/types.h>
+#include "serialport.h"
 
 #ifdef Q_OS_IOS
 #include "ios/lockscreen.h"
@@ -87,8 +88,10 @@ class csafeellipticalThread : public QThread {
     void onCalories(double calories);
     void onDistance(double distance);
     void onPace(double pace);
-    void onStatus(uint16_t status);
+    //void onStatus(uint16_t status);
+    void onStatus(char status);
     void onSpeed(double speed);
+    void portavailable(bool available);
 
   private:
     // Utility and BG Thread functions
@@ -146,6 +149,8 @@ class csafeelliptical : public elliptical {
     bool distanceIsChanging = false;
     metric distanceReceived;
 
+    bool _connected = true;
+
 
 #ifdef Q_OS_IOS
     lockscreen *h = 0;
@@ -157,7 +162,7 @@ class csafeelliptical : public elliptical {
 
   private slots:
     void update();
-    void newPacket(QByteArray p);
+   // void newPacket(QByteArray p);
     void ftmsCharacteristicChanged(const QLowEnergyCharacteristic &characteristic, const QByteArray &newValue);
     void changeInclinationRequested(double grade, double percentage);
     void onPower(double power);
@@ -166,12 +171,14 @@ class csafeelliptical : public elliptical {
     void onCalories(double calories);
     void onDistance(double distance);
     void onPace(double pace);
-    void onStatus(uint16_t status);
+    void onStatus(char status);
     void onSpeed(double speed);
+    void portavailable(bool available);
 
   public slots:
     void deviceDiscovered(const QBluetoothDeviceInfo &device);
-    void serviceDiscovered(const QBluetoothUuid &gatt);
+
+    //void serviceDiscovered(const QBluetoothUuid &gatt);
 
 };
 
