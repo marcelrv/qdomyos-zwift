@@ -3,14 +3,13 @@
 /* ----------------------------------------------------------------------
  * CONSTRUCTOR/DESRTUCTOR
  * ---------------------------------------------------------------------- */
-Serialport::Serialport(QString deviceFilename, speed_t baudRatec) { 
+Serialport::Serialport(QString deviceFilename, speed_t baudRatec) {
 
     setDevice(deviceFilename);
     this->baudRate = baudRate;
- }
-
-Serialport::~Serialport() {
 }
+
+Serialport::~Serialport() {}
 
 void Serialport::setTimeout(int timeout) { this->_timeout = timeout; }
 
@@ -162,6 +161,10 @@ int Serialport::openPort() {
 int Serialport::rawWrite(uint8_t *bytes, int size) {
     qDebug() << "Writing data:" << QByteArray((const char *)bytes, size).toHex();
     int rc = 0;
+    if (!isOpen()){
+        qDebug() << "Port not open";
+        return -1;
+    }
 
 #ifdef Q_OS_ANDROID
 
@@ -244,7 +247,6 @@ int Serialport::rawRead(uint8_t bytes[], int size, bool line) {
         }
         for (int i = fullLen; i < len + fullLen; i++) {
             bytes[i] = b[i - fullLen];
-            
         }
         qDebug() << len << QByteArray((const char *)b, len).toHex(' ');
         fullLen += len;

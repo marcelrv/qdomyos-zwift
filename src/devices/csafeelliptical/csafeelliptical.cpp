@@ -19,18 +19,19 @@
 
 #include "csafeelliptical.h"
 
-
 using namespace std::chrono_literals;
 
-csafeelliptical::csafeelliptical(bool noWriteResistance, bool noHeartService, int8_t bikeResistanceOffset,
-                                 double bikeResistanceGain) {
+csafeelliptical::csafeelliptical(bool noWriteResistance, bool noHeartService, bool noVirtualDevice,
+                                 int8_t bikeResistanceOffset, double bikeResistanceGain) {
     m_watt.setType(metric::METRIC_WATT);
     Speed.setType(metric::METRIC_SPEED);
     refresh = new QTimer(this);
     this->noWriteResistance = noWriteResistance;
     this->noHeartService = noHeartService;
-    this->noVirtualDevice = false; // noVirtualDevice;
+    this->noVirtualDevice = noVirtualDevice; // noVirtualDevice;
     initDone = false;
+    qDebug() << "CSAAAAAAAAAAAAAFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEEEEEEEEEEEEEEEEEEEEEEEEE constructor";
+
     connect(refresh, &QTimer::timeout, this, &csafeelliptical::update);
     refresh->start(200ms);
     csafeellipticalThread *t = new csafeellipticalThread();
@@ -44,13 +45,14 @@ csafeelliptical::csafeelliptical(bool noWriteResistance, bool noHeartService, in
     connect(t, &csafeellipticalThread::onSpeed, this, &csafeelliptical::onSpeed);
     connect(t, &csafeellipticalThread::portavailable, this, &csafeelliptical::portavailable);
 
-    emit debug(QStringLiteral("init  bikeResistanceOffset ") + QString::number(bikeResistanceOffset));
-    emit debug(QStringLiteral("init  bikeResistanceGain ") + QString::number(bikeResistanceGain));
+    // emit debug(QStringLiteral("init  bikeResistanceOffset ") + QString::number(bikeResistanceOffset));
+    //  emit debug(QStringLiteral("init  bikeResistanceGain ") + QString::number(bikeResistanceGain));
     t->start();
 }
 
 void csafeelliptical::onPace(double pace) {
-    qDebug() << "Current Pace received:" << pace;
+    qDebug() << "Current Pace received:" << pace << " updated:" << distanceIsChanging;
+    ;
     if (distanceIsChanging && pace > 0)
         Speed = (60.0 / (double)(pace)) * 60.0;
     else
@@ -59,21 +61,23 @@ void csafeelliptical::onPace(double pace) {
 }
 
 void csafeelliptical::onSpeed(double speed) {
-    qDebug() << "Current Speed received:" << speed;
- if(distanceIsChanging)
-    Speed = speed;
+    qDebug() << "Current Speed received:" << speed << " updated:" << distanceIsChanging;
+    if (distanceIsChanging)
+        Speed = speed;
 }
 
 void csafeelliptical::onPower(double power) {
-    qDebug() << "Current Power received:" << power;
+    qDebug() << "Current Power received:" << power << " updated:" << distanceIsChanging;
+    ;
     if (distanceIsChanging)
         m_watt = power;
 }
 
 void csafeelliptical::onCadence(double cadence) {
-    qDebug() << "Current Cadence received:" << cadence;
-        if (distanceIsChanging)
-     Cadence = cadence;
+    qDebug() << "Current Cadence received:" << cadence << " updated:" << distanceIsChanging;
+    ;
+    if (distanceIsChanging)
+        Cadence = cadence;
 }
 
 void csafeelliptical::onHeart(double hr) {
@@ -106,11 +110,13 @@ void csafeelliptical::onCalories(double calories) {
 }
 
 void csafeelliptical::onDistance(double distance) {
-    qDebug() << "Current Distance received:" << distance / 1000.0;
+    qDebug() << "Current Distance received:" << distance / 1000.0 << " updated:" << distanceIsChanging;
     Distance = distance / 1000.0;
     if (distance != distanceReceived.value()) {
         distanceIsChanging = true;
         distanceReceived = distance;
+        qDebug() << "Current Distance received:" << distance / 1000.0 << " updated:" << distanceIsChanging;
+
     } else if (abs(distanceReceived.lastChanged().secsTo(QDateTime::currentDateTime())) > 30) {
         distanceIsChanging = false;
         m_watt = 0.0;
@@ -120,9 +126,8 @@ void csafeelliptical::onDistance(double distance) {
 }
 
 void csafeelliptical::onStatus(char status) {
-    qDebug() << "Current Status value received:" << status;
     QString statusString = CSafeUtility::statusByteToText(status);
-    qDebug() << "Current Status code:"  << status << " status: "<< statusString;
+    qDebug() << "Current Status code:" << status << " status: " << statusString;
 
     /*
         0x00: Error
@@ -139,10 +144,10 @@ void csafeelliptical::onStatus(char status) {
 
 void csafeelliptical::portavailable(bool available) {
     if (available) {
-        emit debug(QStringLiteral("CSAFE port available"));
+        qDebug() << "CSAFE port available";
         _connected = true;
     } else {
-        emit debug(QStringLiteral("CSAFE port not available"));
+        qDebug() << "CSAFE port not available";
         _connected = false;
     }
 }
@@ -166,11 +171,13 @@ void csafeellipticalThread::run() {
     int lastStatus = -1;
     while (1) {
 
-        if (connectioncounter > 10 || !connectioncounter < 0) { //! serial->isOpen()) {
+        if (connectioncounter > 10) { //! serial->isOpen()) {
             rc = serial->openPort();
             if (rc != 0) {
                 emit portavailable(false);
                 connectioncounter++;
+                qDebug() << "Error opening serial port " << deviceFilename << "rc=" << rc << " sleeping for "
+                         << connectioncounter << "s";
                 QThread::msleep(connectioncounter * 1000);
                 continue;
             } else {
@@ -196,7 +203,7 @@ void csafeellipticalThread::run() {
 
         } else if (p == 5) {
             command << "CSAFE_GETSTATUS_CMD";
-            lastStatus =-1; // ensures the status is always sent
+            lastStatus = -1; // ensures the status is always sent
         }
         if (p == 6) {
             command << "CSAFE_GETHORIZONTAL_CMD";
@@ -209,14 +216,18 @@ void csafeellipticalThread::run() {
 
         qDebug() << "CSAFE >> " << ret.toHex(' ');
         rc = serial->rawWrite((uint8_t *)ret.data(), ret.length());
-        static uint8_t rx[120];
-        if (rc > 0) {
-            // qDebug() << "Sent " << rc << " bytes";
-            rc = serial->rawRead(rx, 100, true);
-            qDebug() << "CSAFE << " << QByteArray::fromRawData((const char *)rx, rc).toHex(' ');
-        }
         if (rc < 0) {
-            qDebug() << "Error reading/writing rc=" << rc;
+            qDebug() << "Error writing serial port " << deviceFilename << "rc=" << rc;
+            connectioncounter++;
+            continue;
+        }
+
+        static uint8_t rx[120];
+        rc = serial->rawRead(rx, 100, true);
+        if (rc > 0) {
+            qDebug() << "CSAFE << " << QByteArray::fromRawData((const char *)rx, rc).toHex(' ');
+        } else {
+            qDebug() << "Error reading serial port " << deviceFilename << " rc=" << rc;
             connectioncounter++;
             continue;
         }
@@ -235,7 +246,7 @@ void csafeellipticalThread::run() {
         }
         if (f["CSAFE_GETSPEED_CMD"].isValid()) {
             double speed = f["CSAFE_GETSPEED_CMD"].value<QVariantList>()[0].toDouble();
-            int unit = f["CSAFE_GETSPEED_CMD"].value<QVariantList>()[1].toInt(); 
+            int unit = f["CSAFE_GETSPEED_CMD"].value<QVariantList>()[1].toInt();
             qDebug() << "Speed value:" << speed << "unit:" << CSafeUtility::getUnitName(unit) << "(" << unit << ")";
             emit onSpeed(CSafeUtility::convertToStandard(unit, speed));
         }
@@ -254,12 +265,14 @@ void csafeellipticalThread::run() {
         if (f["CSAFE_GETHORIZONTAL_CMD"].isValid()) {
             double distance = f["CSAFE_GETHORIZONTAL_CMD"].value<QVariantList>()[0].toDouble();
             int unit = f["CSAFE_GETHORIZONTAL_CMD"].value<QVariantList>()[1].toInt();
-            qDebug() << "Distance value:" << distance << f["CSAFE_GETHORIZONTAL_CMD"].value<QVariantList>()[1] << "unit:" << CSafeUtility::getUnitName(unit) << "(" << unit << ")";
+            qDebug() << "Distance value:" << distance << f["CSAFE_GETHORIZONTAL_CMD"].value<QVariantList>()[1]
+                     << "unit:" << CSafeUtility::getUnitName(unit) << "(" << unit << ")";
             emit onDistance(CSafeUtility::convertToStandard(unit, distance));
         }
         if (f["CSAFE_GETSTATUS_CMD"].isValid()) {
             u_int16_t statusvalue = f["CSAFE_GETSTATUS_CMD"].value<QVariantList>()[0].toUInt();
-            qDebug() << "Status value:" << statusvalue << " lastStatus:" << lastStatus << " statusvalue & 0x0f:" << (statusvalue & 0x0f);
+            qDebug() << "Status value:" << statusvalue << " lastStatus:" << lastStatus
+                     << " statusvalue & 0x0f:" << (statusvalue & 0x0f);
             if (statusvalue != lastStatus) {
                 lastStatus = statusvalue;
                 char statusChar = static_cast<char>(statusvalue & 0x0f);
@@ -273,15 +286,15 @@ void csafeellipticalThread::run() {
     serial->closePort();
 }
 
-
 void csafeelliptical::update() {
     QSettings settings;
     QString heartRateBeltName =
         settings.value(QZSettings::heart_rate_belt_name, QZSettings::default_heart_rate_belt_name).toString();
 
-    update_metrics(false, watts());
+    update_metrics(true, watts());
     lastRefreshCharacteristicChanged = QDateTime::currentDateTime();
-
+    qDebug() << "CSAAAAAAAAAAAAAFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEEEEEEEEEEEEEEEEEEEEEEEEE "
+                "lastRefreshCharacteristicChanged";
 
     // ******************************************* virtual treadmill init *************************************
     if (!firstStateChanged && !this->hasVirtualDevice()
@@ -334,8 +347,11 @@ void csafeelliptical::update() {
         }
         // ********************************************************************************************************
     }
+
     if (!firstStateChanged)
-        emit connectedAndDiscovered();
+        qDebug() << "CSAAAAAAAAAAAAAFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEEEEEEEEEEEEEEEEEEEEEEEEE connectedAndDiscovered";
+
+    emit connectedAndDiscovered();
     firstStateChanged = 1;
     // ********************************************************************************************************
 
@@ -393,7 +409,12 @@ void csafeelliptical::changeInclinationRequested(double grade, double percentage
     emit debug(QStringLiteral("writing percentage  ") + QString::number(percentage));
 }
 
-bool csafeelliptical::connected() { return _connected; }
+bool csafeelliptical::connected() {
+
+    qDebug() << "CSAAAAAAAAAAAAAFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEEEEEEEEEEEEEEEEEEEEEEEEE Connect";
+    return true;
+    return _connected;
+}
 
 void csafeelliptical::deviceDiscovered(const QBluetoothDeviceInfo &device) {
     emit debug(QStringLiteral("Found new device: ") + device.name() + " (" + device.address().toString() + ')');

@@ -789,7 +789,7 @@ void bluetooth::deviceDiscovered(const QBluetoothDeviceInfo &device) {
             } else if (!csafeellipticalSerialPort.isEmpty() && !csafeElliptical) {
                 this->stopDiscovery();
                 // csafeElliptical = new csafeelliptical(noWriteResistance, noHeartService, false);
-                csafeElliptical = new csafeelliptical(noWriteResistance, noHeartService,
+                csafeElliptical = new csafeelliptical(noWriteResistance, noHeartService, false,
                                                                     bikeResistanceOffset, bikeResistanceGain);
                 emit deviceConnected(b);
                 connect(csafeElliptical, &bluetoothdevice::connectedAndDiscovered, this, &bluetooth::connectedAndDiscovered);

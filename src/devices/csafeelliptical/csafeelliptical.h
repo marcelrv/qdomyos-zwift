@@ -26,8 +26,8 @@
 #include <QObject>
 #include <QString>
 
-#include "devices/csaferower/csafe.h"
 #include "csafeutility.h"
+#include "devices/csaferower/csafe.h"
 #include "devices/elliptical.h"
 #include "virtualdevices/virtualbike.h"
 #include "virtualdevices/virtualtreadmill.h"
@@ -55,6 +55,7 @@
 #include <QAndroidJniObject>
 #endif
 
+#include "serialport.h"
 #include <errno.h>
 #include <fcntl.h>
 #include <stddef.h>
@@ -62,8 +63,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/types.h>
-#include "serialport.h"
-
 
 #ifdef Q_OS_IOS
 #include "ios/lockscreen.h"
@@ -90,18 +89,18 @@ class csafeellipticalThread : public QThread {
     void onCalories(double calories);
     void onDistance(double distance);
     void onPace(double pace);
-    //void onStatus(uint16_t status);
+    // void onStatus(uint16_t status);
     void onStatus(char status);
     void onSpeed(double speed);
     void portavailable(bool available);
 
   private:
     // Utility and BG Thread functions
-    int openPort();
-    int closePort();
+//    int openPort();
+//    int closePort();
 
     // Mutex for controlling accessing private data
-    QMutex pvars;
+//    QMutex pvars;
 
     // device port
     QString deviceFilename;
@@ -113,8 +112,8 @@ class csafeellipticalThread : public QThread {
     struct termios deviceSettings; // unix!!
 #endif
     // raw device utils
-    int rawWrite(uint8_t *bytes, int size); // unix!!
-    int rawRead(uint8_t *bytes, int size);  // unix!!
+ //   int rawWrite(uint8_t *bytes, int size); // unix!!
+ //   int rawRead(uint8_t *bytes, int size);  // unix!!
 
 #ifdef Q_OS_ANDROID
     QList<jbyte> bufRX;
@@ -122,12 +121,12 @@ class csafeellipticalThread : public QThread {
 #endif
 };
 
-//class csafeelliptical : public elliptical {
+// class csafeelliptical : public elliptical {
 class csafeelliptical : public elliptical {
     Q_OBJECT
   public:
-    csafeelliptical(bool noWriteResistance, bool noHeartService, int8_t bikeResistanceOffset,
-                         double bikeResistanceGain);
+    csafeelliptical(bool noWriteResistance, bool noHeartService, bool noVirtualDevice, int8_t bikeResistanceOffset,
+                    double bikeResistanceGain);
     bool connected() override;
 
   private:
@@ -153,7 +152,6 @@ class csafeelliptical : public elliptical {
 
     bool _connected = true;
 
-
 #ifdef Q_OS_IOS
     lockscreen *h = 0;
 #endif
@@ -164,7 +162,7 @@ class csafeelliptical : public elliptical {
 
   private slots:
     void update();
-   // void newPacket(QByteArray p);
+    // void newPacket(QByteArray p);
     void ftmsCharacteristicChanged(const QLowEnergyCharacteristic &characteristic, const QByteArray &newValue);
     void changeInclinationRequested(double grade, double percentage);
     void onPower(double power);
@@ -180,8 +178,7 @@ class csafeelliptical : public elliptical {
   public slots:
     void deviceDiscovered(const QBluetoothDeviceInfo &device);
 
-    //void serviceDiscovered(const QBluetoothUuid &gatt);
-
+    // void serviceDiscovered(const QBluetoothUuid &gatt);
 };
 
 #endif // CSAFEELLIPTICAL_H
