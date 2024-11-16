@@ -89,6 +89,7 @@ devices/bkoolbike/bkoolbike.cpp \
 devices/csaferower/csafe.cpp \
 devices/csafeelliptical/csafeelliptical.cpp \
 devices/csafeelliptical/serialport.cpp \
+devices/csafeelliptical/csafeutility.cpp \
 devices/csaferower/csaferower.cpp \
 devices/eliteariafan/eliteariafan.cpp \
 devices/fakerower/fakerower.cpp \
