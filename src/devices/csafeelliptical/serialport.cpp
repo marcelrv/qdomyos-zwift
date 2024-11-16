@@ -244,6 +244,7 @@ int Serialport::rawRead(uint8_t bytes[], int size, bool line) {
         }
         for (int i = fullLen; i < len + fullLen; i++) {
             bytes[i] = b[i - fullLen];
+            
         }
         qDebug() << len << QByteArray((const char *)b, len).toHex(' ');
         fullLen += len;

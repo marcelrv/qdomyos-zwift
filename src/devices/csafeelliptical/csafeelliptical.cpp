@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2024 Marcel Verpaalen (marcel@verpaalen.com)
+ * based on csaferower
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the Free
@@ -17,6 +18,7 @@
  */
 
 #include "csafeelliptical.h"
+
 
 using namespace std::chrono_literals;
 
@@ -47,25 +49,18 @@ csafeelliptical::csafeelliptical(bool noWriteResistance, bool noHeartService, in
     t->start();
 }
 
-// speed
-// pace
-// resistance
-// currentInclination
-// elevationGain
-
 void csafeelliptical::onPace(double pace) {
     qDebug() << "Current Pace received:" << pace;
     if (distanceIsChanging && pace > 0)
         Speed = (60.0 / (double)(pace)) * 60.0;
     else
         Speed = 0;
-
     qDebug() << "Current Speed calculated:" << Speed.value() << pace;
 }
 
 void csafeelliptical::onSpeed(double speed) {
     qDebug() << "Current Speed received:" << speed;
-    // if(distanceIsChanging)
+ if(distanceIsChanging)
     Speed = speed;
 }
 
@@ -77,8 +72,8 @@ void csafeelliptical::onPower(double power) {
 
 void csafeelliptical::onCadence(double cadence) {
     qDebug() << "Current Cadence received:" << cadence;
-    // if(distanceIsChanging)
-    //     Cadence = cadence;
+        if (distanceIsChanging)
+     Cadence = cadence;
 }
 
 void csafeelliptical::onHeart(double hr) {
@@ -113,15 +108,11 @@ void csafeelliptical::onCalories(double calories) {
 void csafeelliptical::onDistance(double distance) {
     qDebug() << "Current Distance received:" << distance / 1000.0;
     Distance = distance / 1000.0;
-
     if (distance != distanceReceived.value()) {
         distanceIsChanging = true;
         distanceReceived = distance;
-    } else if (abs(distanceReceived.lastChanged().secsTo(QDateTime::currentDateTime())) > 20) {
-        // TODO: check if this is still needed
-
+    } else if (abs(distanceReceived.lastChanged().secsTo(QDateTime::currentDateTime())) > 30) {
         distanceIsChanging = false;
-        distanceIsChanging = true;
         m_watt = 0.0;
         Cadence = 0.0;
         Speed = 0.0;
@@ -130,8 +121,8 @@ void csafeelliptical::onDistance(double distance) {
 
 void csafeelliptical::onStatus(char status) {
     qDebug() << "Current Status value received:" << status;
-    QString statusString = csafe::statusByteToText(status);
-    qDebug() << "Current Status received:" << statusString;
+    QString statusString = CSafeUtility::statusByteToText(status);
+    qDebug() << "Current Status code:"  << status << " status: "<< statusString;
 
     /*
         0x00: Error
@@ -243,7 +234,10 @@ void csafeellipticalThread::run() {
             emit onPace(f["CSAFE_GETPACE_CMD"].value<QVariantList>()[0].toDouble());
         }
         if (f["CSAFE_GETSPEED_CMD"].isValid()) {
-            emit onSpeed(f["CSAFE_GETSPEED_CMD"].value<QVariantList>()[0].toDouble());
+            double speed = f["CSAFE_GETSPEED_CMD"].value<QVariantList>()[0].toDouble();
+            int unit = f["CSAFE_GETSPEED_CMD"].value<QVariantList>()[1].toInt(); 
+            qDebug() << "Speed value:" << speed << "unit:" << CSafeUtility::getUnitName(unit) << "(" << unit << ")";
+            emit onSpeed(CSafeUtility::convertToStandard(unit, speed));
         }
         if (f["CSAFE_GETPOWER_CMD"].isValid()) {
             emit onPower(f["CSAFE_GETPOWER_CMD"].value<QVariantList>()[0].toDouble());
@@ -258,7 +252,10 @@ void csafeellipticalThread::run() {
             emit onDistance(f["CSAFE_PM_GET_WORKDISTANCE"].value<QVariantList>()[0].toDouble());
         }
         if (f["CSAFE_GETHORIZONTAL_CMD"].isValid()) {
-            emit onDistance(f["CSAFE_GETHORIZONTAL_CMD"].value<QVariantList>()[0].toDouble());
+            double distance = f["CSAFE_GETHORIZONTAL_CMD"].value<QVariantList>()[0].toDouble();
+            int unit = f["CSAFE_GETHORIZONTAL_CMD"].value<QVariantList>()[1].toInt();
+            qDebug() << "Distance value:" << distance << f["CSAFE_GETHORIZONTAL_CMD"].value<QVariantList>()[1] << "unit:" << CSafeUtility::getUnitName(unit) << "(" << unit << ")";
+            emit onDistance(CSafeUtility::convertToStandard(unit, distance));
         }
         if (f["CSAFE_GETSTATUS_CMD"].isValid()) {
             u_int16_t statusvalue = f["CSAFE_GETSTATUS_CMD"].value<QVariantList>()[0].toUInt();
@@ -283,30 +280,8 @@ void csafeelliptical::update() {
         settings.value(QZSettings::heart_rate_belt_name, QZSettings::default_heart_rate_belt_name).toString();
 
     update_metrics(false, watts());
-
-    /*
-        qDebug() << QStringLiteral("Current speed: ") + QString::number(Speed.value());
-        qDebug() << QStringLiteral("Current incline: ") + QString::number(Inclination.value());
-        qDebug() << QStringLiteral("Current heart: ") + QString::number(Heart.value());
-        qDebug() << QStringLiteral("Current KCal: ") + QString::number(KCal.value());
-        qDebug() << QStringLiteral("Current KCal from the machine: ") + QString::number(KCal.value());
-        qDebug() << QStringLiteral("Current Distance: ") + QString::number(Distance.value());
-        qDebug() << QStringLiteral("Current Distance Calculated: ") + QString::number(Distance.value());
-    */
-
-    /*
-        if (Cadence.value() > 0) {
-            CrankRevs++;
-            LastCrankEventTime += (uint16_t)(1024.0 / (((double)(Cadence.value())) / 60.0));
-        }
-
-
-        Distance += ((Speed.value() / (double)3600.0) /
-                     ((double)1000.0 /
-       (double)(lastRefreshCharacteristicChanged.msecsTo(QDateTime::currentDateTime()))));
-
-    */
     lastRefreshCharacteristicChanged = QDateTime::currentDateTime();
+
 
     // ******************************************* virtual treadmill init *************************************
     if (!firstStateChanged && !this->hasVirtualDevice()
@@ -423,13 +398,5 @@ bool csafeelliptical::connected() { return _connected; }
 void csafeelliptical::deviceDiscovered(const QBluetoothDeviceInfo &device) {
     emit debug(QStringLiteral("Found new device: ") + device.name() + " (" + device.address().toString() + ')');
 }
-
-/*
-void csafeelliptical::serviceDiscovered(const QBluetoothUuid &gatt) {
-    emit debug(QStringLiteral("serviceDiscovered ") + gatt.toString());
-}
-*/
-
-// void csafeelliptical::newPacket(QByteArray p) {}
 
 uint16_t csafeelliptical::watts() { return m_watt.value(); }

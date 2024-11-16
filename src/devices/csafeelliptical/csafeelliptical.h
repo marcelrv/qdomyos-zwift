@@ -27,6 +27,7 @@
 #include <QString>
 
 #include "devices/csaferower/csafe.h"
+#include "csafeutility.h"
 #include "devices/elliptical.h"
 #include "virtualdevices/virtualbike.h"
 #include "virtualdevices/virtualtreadmill.h"
@@ -62,6 +63,7 @@
 #include <stdlib.h>
 #include <sys/types.h>
 #include "serialport.h"
+
 
 #ifdef Q_OS_IOS
 #include "ios/lockscreen.h"
