@@ -461,27 +461,3 @@ QVariantMap csafe::read(const QVector<quint8> &transmission) {
     return response;
 }
 
-QString csafe::statusByteToText(u_int8_t status) {
-    switch (status) {
-    case 0x00:
-        return "Error";
-    case 0x01:
-        return "Ready";
-    case 0x02:
-        return "Idle";
-    case 0x03:
-        return "Have ID";
-    case 0x05:
-        return "In Use";
-    case 0x06:
-        return "Pause";
-    case 0x07:
-        return "Finish";
-    case 0x08:
-        return "Manual";
-    case 0x09:
-        return "Off line";
-    default:
-        return "Unknown";
-    }
-}

@@ -37,7 +37,6 @@ class csafe {
     QByteArray write(const QStringList &arguments , bool surround_msg);
     QVector<quint8> check_message(QVector<quint8> message);
     QVariantMap read(const QVector<quint8> &transmission);
-    static QString statusByteToText(u_int8_t statusByte);
 };
 
 #endif // CSAFE_H
