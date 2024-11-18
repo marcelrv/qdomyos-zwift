@@ -204,7 +204,7 @@ QString csafe::bytes2ascii(const QVector<quint8> &raw_bytes) {
     return word;
 }
 
-QByteArray csafe::write(const QStringList &arguments, bool surround_msg = true) {
+QByteArray csafe::write(const QStringList &arguments, bool surround_msg) {
     int i = 0;
     QVector<quint8> message;
     int wrapper = 0;
