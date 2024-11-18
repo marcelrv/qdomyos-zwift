@@ -3586,6 +3586,8 @@ bluetoothdevice *bluetooth::device() {
         return computrainerBike;
     } else if (csafeRower) {
         return csafeRower;
+    } else if (csafeElliptical) {
+        return csafeElliptical;
 #endif
     }
     return nullptr;
