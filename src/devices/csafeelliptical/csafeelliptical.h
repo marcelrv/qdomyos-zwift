@@ -95,25 +95,8 @@ class csafeellipticalThread : public QThread {
     void portavailable(bool available);
 
   private:
-    // Utility and BG Thread functions
-//    int openPort();
-//    int closePort();
 
-    // Mutex for controlling accessing private data
-//    QMutex pvars;
-
-    // device port
     QString deviceFilename;
-#ifdef WIN32
-    HANDLE devicePort;  // file descriptor for reading from com3
-    DCB deviceSettings; // serial port settings baud rate et al
-#else
-    int devicePort;                // unix!!
-    struct termios deviceSettings; // unix!!
-#endif
-    // raw device utils
- //   int rawWrite(uint8_t *bytes, int size); // unix!!
- //   int rawRead(uint8_t *bytes, int size);  // unix!!
 
 #ifdef Q_OS_ANDROID
     QList<jbyte> bufRX;
@@ -121,7 +104,6 @@ class csafeellipticalThread : public QThread {
 #endif
 };
 
-// class csafeelliptical : public elliptical {
 class csafeelliptical : public elliptical {
     Q_OBJECT
   public:
@@ -131,11 +113,9 @@ class csafeelliptical : public elliptical {
 
   private:
     QTimer *refresh;
-
     uint8_t sec1Update = 0;
     QByteArray lastPacket;
     QDateTime lastRefreshCharacteristicChanged = QDateTime::currentDateTime();
-    QDateTime lastGoodCadence = QDateTime::currentDateTime();
     uint8_t firstStateChanged = 0;
 
     uint16_t watts() override;
@@ -162,7 +142,6 @@ class csafeelliptical : public elliptical {
 
   private slots:
     void update();
-    // void newPacket(QByteArray p);
     void ftmsCharacteristicChanged(const QLowEnergyCharacteristic &characteristic, const QByteArray &newValue);
     void changeInclinationRequested(double grade, double percentage);
     void onPower(double power);
@@ -177,8 +156,6 @@ class csafeelliptical : public elliptical {
 
   public slots:
     void deviceDiscovered(const QBluetoothDeviceInfo &device);
-
-    // void serviceDiscovered(const QBluetoothUuid &gatt);
 };
 
 #endif // CSAFEELLIPTICAL_H

@@ -30,8 +30,6 @@ csafeelliptical::csafeelliptical(bool noWriteResistance, bool noHeartService, bo
     this->noHeartService = noHeartService;
     this->noVirtualDevice = noVirtualDevice; // noVirtualDevice;
     initDone = false;
-    qDebug() << "CSAAAAAAAAAAAAAFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEEEEEEEEEEEEEEEEEEEEEEEEE constructor";
-
     connect(refresh, &QTimer::timeout, this, &csafeelliptical::update);
     refresh->start(200ms);
     csafeellipticalThread *t = new csafeellipticalThread();
@@ -44,15 +42,13 @@ csafeelliptical::csafeelliptical(bool noWriteResistance, bool noHeartService, bo
     connect(t, &csafeellipticalThread::onStatus, this, &csafeelliptical::onStatus);
     connect(t, &csafeellipticalThread::onSpeed, this, &csafeelliptical::onSpeed);
     connect(t, &csafeellipticalThread::portavailable, this, &csafeelliptical::portavailable);
-
-    // emit debug(QStringLiteral("init  bikeResistanceOffset ") + QString::number(bikeResistanceOffset));
-    //  emit debug(QStringLiteral("init  bikeResistanceGain ") + QString::number(bikeResistanceGain));
     t->start();
 }
 
+// Life Fitness 95x does not return pace. Other models might
 void csafeelliptical::onPace(double pace) {
     qDebug() << "Current Pace received:" << pace << " updated:" << distanceIsChanging;
-    ;
+
     if (distanceIsChanging && pace > 0)
         Speed = (60.0 / (double)(pace)) * 60.0;
     else
@@ -68,14 +64,12 @@ void csafeelliptical::onSpeed(double speed) {
 
 void csafeelliptical::onPower(double power) {
     qDebug() << "Current Power received:" << power << " updated:" << distanceIsChanging;
-    ;
     if (distanceIsChanging)
         m_watt = power;
 }
 
 void csafeelliptical::onCadence(double cadence) {
     qDebug() << "Current Cadence received:" << cadence << " updated:" << distanceIsChanging;
-    ;
     if (distanceIsChanging)
         Cadence = cadence;
 }
@@ -248,7 +242,13 @@ void csafeellipticalThread::run() {
             double speed = f["CSAFE_GETSPEED_CMD"].value<QVariantList>()[0].toDouble();
             int unit = f["CSAFE_GETSPEED_CMD"].value<QVariantList>()[1].toInt();
             qDebug() << "Speed value:" << speed << "unit:" << CSafeUtility::getUnitName(unit) << "(" << unit << ")";
-            emit onSpeed(CSafeUtility::convertToStandard(unit, speed));
+
+            if (unit == 82) { // revs/minute
+                emit onCadence(speed);
+                emit onSpeed(CSafeUtility::convertToStandard(unit, speed) * 60 / 1000);
+            } else {
+                emit onSpeed(CSafeUtility::convertToStandard(unit, speed));
+            }
         }
         if (f["CSAFE_GETPOWER_CMD"].isValid()) {
             emit onPower(f["CSAFE_GETPOWER_CMD"].value<QVariantList>()[0].toDouble());
@@ -265,8 +265,8 @@ void csafeellipticalThread::run() {
         if (f["CSAFE_GETHORIZONTAL_CMD"].isValid()) {
             double distance = f["CSAFE_GETHORIZONTAL_CMD"].value<QVariantList>()[0].toDouble();
             int unit = f["CSAFE_GETHORIZONTAL_CMD"].value<QVariantList>()[1].toInt();
-            qDebug() << "Distance value:" << distance << f["CSAFE_GETHORIZONTAL_CMD"].value<QVariantList>()[1]
-                     << "unit:" << CSafeUtility::getUnitName(unit) << "(" << unit << ")";
+            qDebug() << "Distance value:" << distance << "unit:" << CSafeUtility::getUnitName(unit) << "(" << unit
+                     << ")";
             emit onDistance(CSafeUtility::convertToStandard(unit, distance));
         }
         if (f["CSAFE_GETSTATUS_CMD"].isValid()) {
@@ -293,8 +293,6 @@ void csafeelliptical::update() {
 
     update_metrics(true, watts());
     lastRefreshCharacteristicChanged = QDateTime::currentDateTime();
-    qDebug() << "CSAAAAAAAAAAAAAFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEEEEEEEEEEEEEEEEEEEEEEEEE "
-                "lastRefreshCharacteristicChanged";
 
     // ******************************************* virtual treadmill init *************************************
     if (!firstStateChanged && !this->hasVirtualDevice()
@@ -348,10 +346,10 @@ void csafeelliptical::update() {
         // ********************************************************************************************************
     }
 
-    if (!firstStateChanged)
-        qDebug() << "CSAAAAAAAAAAAAAFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEEEEEEEEEEEEEEEEEEEEEEEEE connectedAndDiscovered";
+    if (!firstStateChanged) {
+        emit connectedAndDiscovered();
+    }
 
-    emit connectedAndDiscovered();
     firstStateChanged = 1;
     // ********************************************************************************************************
 
@@ -389,15 +387,15 @@ void csafeelliptical::update() {
     }*/
 
     if (requestResistance != -1 && requestResistance != currentResistance().value()) {
-        //    Resistance = requestResistance;
-        emit debug(QStringLiteral("writing resistance ") + QString::number(requestResistance));
+        Resistance = requestResistance;
+        emit debug(QStringLiteral("Writing resistance ") + QString::number(requestResistance));
     }
 }
 
 void csafeelliptical::ftmsCharacteristicChanged(const QLowEnergyCharacteristic &characteristic,
                                                 const QByteArray &newValue) {
     QByteArray b = newValue;
-    qDebug() << "routing FTMS packet to the bike from virtualbike" << characteristic.uuid() << newValue.toHex(' ');
+    qDebug() << "Routing FTMS packet to the bike from virtualbike" << characteristic.uuid() << newValue.toHex(' ');
 }
 
 void csafeelliptical::changeInclinationRequested(double grade, double percentage) {
@@ -405,16 +403,11 @@ void csafeelliptical::changeInclinationRequested(double grade, double percentage
         percentage = 0;
     //   changeInclination(grade, percentage);
     emit debug(QStringLiteral("Running    changeInclination(grade, percentage);"));
-    emit debug(QStringLiteral("writing grade ") + QString::number(grade));
-    emit debug(QStringLiteral("writing percentage  ") + QString::number(percentage));
+    emit debug(QStringLiteral("Writing grade ") + QString::number(grade));
+    emit debug(QStringLiteral("Writing percentage  ") + QString::number(percentage));
 }
 
-bool csafeelliptical::connected() {
-
-    qDebug() << "CSAAAAAAAAAAAAAFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEEEEEEEEEEEEEEEEEEEEEEEEE Connect";
-    return true;
-    return _connected;
-}
+bool csafeelliptical::connected() { return _connected; }
 
 void csafeelliptical::deviceDiscovered(const QBluetoothDeviceInfo &device) {
     emit debug(QStringLiteral("Found new device: ") + device.name() + " (" + device.address().toString() + ')');
