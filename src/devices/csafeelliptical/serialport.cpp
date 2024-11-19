@@ -1,10 +1,9 @@
 #include "serialport.h"
 
 /* ----------------------------------------------------------------------
- * CONSTRUCTOR/DESRTUCTOR
+ * CONSTRUCTOR/DESTRUCTOR
  * ---------------------------------------------------------------------- */
-Serialport::Serialport(QString deviceFilename, speed_t baudRatec) {
-
+Serialport::Serialport(QString deviceFilename, speed_t baudRate) {
     setDevice(deviceFilename);
     this->baudRate = baudRate;
 }
@@ -161,7 +160,7 @@ int Serialport::openPort() {
 int Serialport::rawWrite(uint8_t *bytes, int size) {
     qDebug() << "Writing data:" << QByteArray((const char *)bytes, size).toHex();
     int rc = 0;
-    if (!isOpen()){
+    if (!isOpen()) {
         qDebug() << "Port not open";
         return -1;
     }
@@ -279,9 +278,10 @@ int Serialport::rawRead(uint8_t bytes[], int size, bool line) {
         while (rc == 0 && timeout < _timeout) {
             rc = read(devicePort, &byte, 1);
             if (rc == -1)
-                return -1; // error!
+                return -1;
             else if (rc == 0) {
-                msleep(50); // sleep for 1/20th of a second
+                QThread::msleep(50); // sleep for 1/20th of a second
+                // std::this_thread::sleep_for(std::chrono::milliseconds(50));
                 timeout += 50;
             } else {
                 bytes[i] = byte;
@@ -295,7 +295,6 @@ int Serialport::rawRead(uint8_t bytes[], int size, bool line) {
     }
 
     qDebug() << i << QString::fromLocal8Bit((const char *)bytes, i);
-
     return i;
 
 #endif

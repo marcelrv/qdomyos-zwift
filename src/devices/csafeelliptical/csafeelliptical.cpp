@@ -166,7 +166,7 @@ void csafeellipticalThread::run() {
 
     int rc = 0;
 
-    Serialport *serial = new Serialport(deviceFilename, B9600);
+    SerialHandler *serial = SerialHandler::create(deviceFilename, B9600);
     serial->setEndChar(0xf2); // end of frame for CSAFE
 
     csafe *csafeInstance = new csafe();

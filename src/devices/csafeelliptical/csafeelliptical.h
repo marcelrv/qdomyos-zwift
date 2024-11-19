@@ -28,6 +28,11 @@
 
 #include "csafeutility.h"
 #include "devices/csaferower/csafe.h"
+
+#include "serialhandler.h"
+#include "netserial.h"
+#include "serialport.h"
+
 #include "devices/elliptical.h"
 #include "virtualdevices/virtualbike.h"
 #include "virtualdevices/virtualtreadmill.h"
@@ -55,7 +60,8 @@
 #include <QAndroidJniObject>
 #endif
 
-#include "serialport.h"
+//#include "serialport.h"
+
 #include <errno.h>
 #include <fcntl.h>
 #include <stddef.h>

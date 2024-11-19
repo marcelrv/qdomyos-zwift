@@ -17,20 +17,10 @@
  * Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-// I have consciously avoided putting things like data logging, lap marking,
-// intervals or any load management functions in this class. It is restricted
-// to controlling an reading telemetry from the device
-//
-// I expect higher order classes to implement such functions whilst
-// other devices (e.g. ANT+ devices) may be implemented with the same basic
-// interface
-//
-// I have avoided a base abstract class at this stage since I am uncertain
-// what core methods would be required by say, ANT+ or Tacx devices
-
 #ifndef _SERIALPORT_h
 #define _SERIALPORT_h
 
+#include "serialhandler.h"
 #include <QDebug>
 #include <QFile>
 #include <QMutex>
@@ -38,9 +28,8 @@
 #include <QThread>
 
 #ifdef WIN32
-#include <windows.h>
-
 #include <winbase.h>
+#include <windows.h>
 #else
 #include <sys/ioctl.h>
 #include <termios.h> // unix!!
@@ -63,39 +52,35 @@
 #include <stdlib.h>
 #include <sys/types.h>
 
-class Serialport : public QThread {
-
+class Serialport : public SerialHandler {
   public:
-    Serialport(QString deviceFilename = "", speed_t baudRate = B9600); // pass device
-    ~Serialport();
-
-    QObject *parent;
+    Serialport(QString deviceFilename, speed_t baudRate);
+    ~Serialport() override;
 
     // Device management
-    void setDevice(const QString &devname);
-    void setEndChar(uint8_t endChar);
-    void setTimeout(int timeout);
+    void setDevice(const QString &devname) override;
+    void setTimeout(int timeout) override;
+    void setEndChar(uint8_t endChar) override;
 
     // Port control
-    int openPort();
-    int closePort();
+    int openPort() override;
+    int closePort() override;
 
     // Data transfer
-    int rawWrite(uint8_t *bytes, int size);
-    int rawRead(uint8_t bytes[], int size, bool line = false);
+    int rawWrite(uint8_t *bytes, int size) override;
+    int rawRead(uint8_t bytes[], int size, bool line = false) override;
 
-    bool isOpen() const;
+    bool isOpen() const override;
 
   private:
     // i/o message holder
-    uint8_t buf[7];
+  //  uint8_t buf[7];
     speed_t baudRate = B9600;
     uint8_t endChar = 0x0D;
-
-    int _timeout = 1500;
+    int _timeout = 1200;
+    QString deviceFilename;
 
     // device port
-    QString deviceFilename;
 #ifdef WIN32
     HANDLE devicePort;  // file descriptor for reading from com3
     DCB deviceSettings; // serial port settings baud rate et al
@@ -110,4 +95,4 @@ class Serialport : public QThread {
 #endif
 };
 
-#endif //
+#endif // _SERIALPORT_h

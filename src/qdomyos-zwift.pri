@@ -89,6 +89,7 @@ devices/bkoolbike/bkoolbike.cpp \
 devices/csaferower/csafe.cpp \
 devices/csafeelliptical/csafeelliptical.cpp \
 devices/csafeelliptical/serialport.cpp \
+devices/csafeelliptical/netserial.cpp \
 devices/csafeelliptical/csafeutility.cpp \
 devices/csaferower/csaferower.cpp \
 devices/eliteariafan/eliteariafan.cpp \
@@ -322,6 +323,9 @@ QTelnet.h \
 devices/bkoolbike/bkoolbike.h \
 devices/csaferower/csafe.h \
 devices/csafeelliptical/csafeelliptical.h \
+devices/csafeelliptical/serialport.cpp \
+devices/csafeelliptical/netserial.cpp \
+devices/csafeelliptical/csafeutility.cpp \
 devices/csaferower/csaferower.h \
 devices/eliteariafan/eliteariafan.h \
 devices/proformtelnetbike/proformtelnetbike.h \
