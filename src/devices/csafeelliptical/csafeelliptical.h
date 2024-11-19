@@ -30,8 +30,8 @@
 #include "devices/csaferower/csafe.h"
 
 #include "serialhandler.h"
-#include "netserial.h"
-#include "serialport.h"
+//#include "netserial.h"
+//#include "serialport.h"
 
 #include "devices/elliptical.h"
 #include "virtualdevices/virtualbike.h"

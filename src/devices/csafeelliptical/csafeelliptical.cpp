@@ -168,6 +168,7 @@ void csafeellipticalThread::run() {
 
     SerialHandler *serial = SerialHandler::create(deviceFilename, B9600);
     serial->setEndChar(0xf2); // end of frame for CSAFE
+    serial->setTimeout(1200); // CSAFE spec says 1s timeout
 
     csafe *csafeInstance = new csafe();
     // int p = 0;
