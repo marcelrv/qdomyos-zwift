@@ -48,7 +48,6 @@ csafeelliptical::csafeelliptical(bool noWriteResistance, bool noHeartService, bo
 // Life Fitness 95x does not return pace. Other models might
 void csafeelliptical::onPace(double pace) {
     qDebug() << "Current Pace received:" << pace << " updated:" << distanceIsChanging;
-
     if (distanceIsChanging && pace > 0)
         Speed = (60.0 / (double)(pace)) * 60.0;
     else
@@ -104,13 +103,24 @@ void csafeelliptical::onCalories(double calories) {
 }
 
 void csafeelliptical::onDistance(double distance) {
-    qDebug() << "Current Distance received:" << distance / 1000.0 << " updated:" << distanceIsChanging;
+    qDebug() << "Current Distance received:" << distance / 1000.0 << " updated:" << distanceReceived.value();
     Distance = distance / 1000.0;
-    if (distance != distanceReceived.value()) {
-        distanceIsChanging = true;
-        distanceReceived = distance;
-        qDebug() << "Current Distance received:" << distance / 1000.0 << " updated:" << distanceIsChanging;
 
+    if (distance != distanceReceived.value() &&
+        abs(distanceReceived.lastChanged().secsTo(QDateTime::currentDateTime())) > 0) {
+        distanceIsChanging = true;
+
+        qDebug() << "Current Distance received:" << distance / 1000.0 << " PREVIOUS:" << distanceReceived.value();
+
+        if (distanceReceived.value() > 1) {
+            Speed = 3600 * (distance - distanceReceived.value()) /
+                    abs(distanceReceived.lastChanged().msecsTo(QDateTime::currentDateTime()));
+
+            qDebug() << abs(distanceReceived.lastChanged().secsTo(QDateTime::currentDateTime())) << "MS "
+                     << distanceReceived.lastChanged().msecsTo(QDateTime::currentDateTime());
+            qDebug() << "speed" << Speed.value();
+        }
+        distanceReceived = distance;
     } else if (abs(distanceReceived.lastChanged().secsTo(QDateTime::currentDateTime())) > 30) {
         distanceIsChanging = false;
         m_watt = 0.0;
@@ -160,7 +170,7 @@ void csafeellipticalThread::run() {
     serial->setEndChar(0xf2); // end of frame for CSAFE
 
     csafe *csafeInstance = new csafe();
-    int p = 0;
+    // int p = 0;
     int connectioncounter = 20;
     int lastStatus = -1;
     while (1) {
@@ -182,29 +192,11 @@ void csafeellipticalThread::run() {
 
         QStringList command;
 
-        if (p == 0) {
-            command << "CSAFE_GETPOWER_CMD";
-        }
-        if (p == 1) {
-            command << "CSAFE_GETSPEED_CMD";
-        } else if (p == 2) {
-            command << "CSAFE_GETCALORIES_CMD";
-        } else if (p == 3) {
-            command << "CSAFE_GETHRCUR_CMD";
-        } else if (p == 4) {
-            //            command << "CSAFE_GETPACE_CMD"; //not supported
-            command << "CSAFE_GETHORIZONTAL_CMD";
-
-        } else if (p == 5) {
-            command << "CSAFE_GETSTATUS_CMD";
-            lastStatus = -1; // ensures the status is always sent
-        }
-        if (p == 6) {
-            command << "CSAFE_GETHORIZONTAL_CMD";
-        }
-        p++;
-        if (p > 6)
-            p = 0;
+        command << "CSAFE_GETPOWER_CMD";
+        command << "CSAFE_GETSPEED_CMD";
+        command << "CSAFE_GETCALORIES_CMD";
+        command << "CSAFE_GETHRCUR_CMD";
+        command << "CSAFE_GETHORIZONTAL_CMD";
 
         QByteArray ret = csafeInstance->write(command, false);
 
@@ -245,7 +237,7 @@ void csafeellipticalThread::run() {
 
             if (unit == 82) { // revs/minute
                 emit onCadence(speed);
-                emit onSpeed(CSafeUtility::convertToStandard(unit, speed) * 60 / 1000);
+                //   emit onSpeed(CSafeUtility::convertToStandard(unit, speed) * 60 * 2.35 / 1000);
             } else {
                 emit onSpeed(CSafeUtility::convertToStandard(unit, speed));
             }
@@ -259,14 +251,11 @@ void csafeellipticalThread::run() {
         if (f["CSAFE_GETCALORIES_CMD"].isValid()) {
             emit onCalories(f["CSAFE_GETCALORIES_CMD"].value<QVariantList>()[0].toDouble());
         }
-        if (f["CSAFE_PM_GET_WORKDISTANCE"].isValid()) {
-            emit onDistance(f["CSAFE_PM_GET_WORKDISTANCE"].value<QVariantList>()[0].toDouble());
-        }
         if (f["CSAFE_GETHORIZONTAL_CMD"].isValid()) {
             double distance = f["CSAFE_GETHORIZONTAL_CMD"].value<QVariantList>()[0].toDouble();
             int unit = f["CSAFE_GETHORIZONTAL_CMD"].value<QVariantList>()[1].toInt();
             qDebug() << "Distance value:" << distance << "unit:" << CSafeUtility::getUnitName(unit) << "(" << unit
-                     << ")";
+                     << ")" << CSafeUtility::convertToStandard(unit, distance);
             emit onDistance(CSafeUtility::convertToStandard(unit, distance));
         }
         if (f["CSAFE_GETSTATUS_CMD"].isValid()) {
@@ -281,7 +270,7 @@ void csafeellipticalThread::run() {
         }
 
         memset(rx, 0x00, sizeof(rx));
-        QThread::msleep(50);
+        QThread::msleep(250);
     }
     serial->closePort();
 }

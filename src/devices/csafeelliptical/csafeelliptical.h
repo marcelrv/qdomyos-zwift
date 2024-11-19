@@ -82,14 +82,12 @@ class csafeellipticalThread : public QThread {
 
   signals:
     void onDebug(QString debug);
-    void newPacket(QByteArray p);
     void onPower(double power);
     void onCadence(double cadence);
     void onHeart(double hr);
     void onCalories(double calories);
     void onDistance(double distance);
     void onPace(double pace);
-    // void onStatus(uint16_t status);
     void onStatus(char status);
     void onSpeed(double speed);
     void portavailable(bool available);
