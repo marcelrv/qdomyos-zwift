@@ -87,6 +87,7 @@ SOURCES += \
 QTelnet.cpp \
 devices/bkoolbike/bkoolbike.cpp \
 devices/csafe/csafe.cpp \
+devices/csafe/csaferunner.cpp \
 devices/csafe/csafeutility.cpp \
 devices/csafe/serialhandler.cpp \
 devices/csafe/serialport.cpp \
@@ -323,6 +324,7 @@ HEADERS += \
 QTelnet.h \
 devices/bkoolbike/bkoolbike.h \
 devices/csafe/csafe.h \
+devices/csafe/csaferunner.h \
 devices/csafe/csafeutility.h \
 devices/csafe/serialhandler.h \
 devices/csafe/serialport.h \

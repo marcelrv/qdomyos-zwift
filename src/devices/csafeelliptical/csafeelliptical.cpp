@@ -32,17 +32,14 @@ csafeelliptical::csafeelliptical(bool noWriteResistance, bool noHeartService, bo
     initDone = false;
     connect(refresh, &QTimer::timeout, this, &csafeelliptical::update);
     refresh->start(200ms);
-    csafeellipticalThread *t = new csafeellipticalThread();
-    connect(t, &csafeellipticalThread::onPower, this, &csafeelliptical::onPower);
-    connect(t, &csafeellipticalThread::onCadence, this, &csafeelliptical::onCadence);
-    connect(t, &csafeellipticalThread::onHeart, this, &csafeelliptical::onHeart);
-    connect(t, &csafeellipticalThread::onCalories, this, &csafeelliptical::onCalories);
-    connect(t, &csafeellipticalThread::onDistance, this, &csafeelliptical::onDistance);
-    connect(t, &csafeellipticalThread::onPace, this, &csafeelliptical::onPace);
-    connect(t, &csafeellipticalThread::onStatus, this, &csafeelliptical::onStatus);
-    connect(t, &csafeellipticalThread::onSpeed, this, &csafeelliptical::onSpeed);
-    connect(t, &csafeellipticalThread::portavailable, this, &csafeelliptical::portavailable);
-    connect(t, &csafeellipticalThread::onCsafeFrame, this, &csafeelliptical::onCsafeFrame);
+    QSettings settings;
+
+    QString deviceFilename =
+        settings.value(QZSettings::csafe_elliptical_port, QZSettings::default_csafe_elliptical_port).toString();
+    CsafeRunnerThread *t = new CsafeRunnerThread(deviceFilename);
+
+    connect(t, &CsafeRunnerThread::portAvailable, this, &csafeelliptical::portAvailable);
+    connect(t, &CsafeRunnerThread::onCsafeFrame, this, &csafeelliptical::onCsafeFrame);
     t->start();
 }
 
@@ -76,6 +73,51 @@ void csafeelliptical::onCadence(double cadence) {
 
 void csafeelliptical::onCsafeFrame(const QVariantMap &frame) {
     qDebug() << "Current CSAFE frame received:" << frame;
+    QVariantMap csafeFrame = frame;
+    if (csafeFrame["CSAFE_GETCADENCE_CMD"].isValid()) {
+        onCadence(csafeFrame["CSAFE_GETCADENCE_CMD"].value<QVariantList>()[0].toDouble());
+    }
+    if (csafeFrame["CSAFE_GETPACE_CMD"].isValid()) {
+        onPace(csafeFrame["CSAFE_GETPACE_CMD"].value<QVariantList>()[0].toDouble());
+    }
+    if (csafeFrame["CSAFE_GETSPEED_CMD"].isValid()) {
+        double speed = csafeFrame["CSAFE_GETSPEED_CMD"].value<QVariantList>()[0].toDouble();
+        int unit = csafeFrame["CSAFE_GETSPEED_CMD"].value<QVariantList>()[1].toInt();
+        qDebug() << "Speed value:" << speed << "unit:" << CSafeUtility::getUnitName(unit) << "(" << unit << ")";
+
+        if (unit == 82) { // revs/minute
+            onCadence(speed);
+            //   emit onSpeed(CSafeUtility::convertToStandard(unit, speed) * 60 * 2.35 / 1000);
+        } else {
+            onSpeed(CSafeUtility::convertToStandard(unit, speed));
+        }
+    }
+    if (csafeFrame["CSAFE_GETPOWER_CMD"].isValid()) {
+        onPower(csafeFrame["CSAFE_GETPOWER_CMD"].value<QVariantList>()[0].toDouble());
+    }
+    if (csafeFrame["CSAFE_GETHRCUR_CMD"].isValid()) {
+        onHeart(csafeFrame["CSAFE_GETHRCUR_CMD"].value<QVariantList>()[0].toDouble());
+    }
+    if (csafeFrame["CSAFE_GETCALORIES_CMD"].isValid()) {
+        onCalories(csafeFrame["CSAFE_GETCALORIES_CMD"].value<QVariantList>()[0].toDouble());
+    }
+    if (csafeFrame["CSAFE_GETHORIZONTAL_CMD"].isValid()) {
+        double distance = csafeFrame["CSAFE_GETHORIZONTAL_CMD"].value<QVariantList>()[0].toDouble();
+        int unit = csafeFrame["CSAFE_GETHORIZONTAL_CMD"].value<QVariantList>()[1].toInt();
+        qDebug() << "Distance value:" << distance << "unit:" << CSafeUtility::getUnitName(unit) << "(" << unit << ")"
+                 << CSafeUtility::convertToStandard(unit, distance);
+        onDistance(CSafeUtility::convertToStandard(unit, distance));
+    }
+    if (csafeFrame["CSAFE_GETSTATUS_CMD"].isValid()) {
+        u_int16_t statusvalue = csafeFrame["CSAFE_GETSTATUS_CMD"].value<QVariantList>()[0].toUInt();
+        qDebug() << "Status value:" << statusvalue << " lastStatus:" << lastStatus
+                 << " statusvalue & 0x0f:" << (statusvalue & 0x0f);
+        if (statusvalue != lastStatus) {
+            lastStatus = statusvalue;
+            char statusChar = static_cast<char>(statusvalue & 0x0f);
+            onStatus(statusChar);
+        }
+    }
 }
 
 void csafeelliptical::onHeart(double hr) {
@@ -137,7 +179,7 @@ void csafeelliptical::onDistance(double distance) {
 void csafeelliptical::onStatus(char status) {
     QString statusString = CSafeUtility::statusByteToText(status);
     qDebug() << "Current Status code:" << status << " status: " << statusString;
-
+//TODO: set pause status if applicable
     /*
         0x00: Error
     0x01: Ready
@@ -151,7 +193,7 @@ void csafeelliptical::onStatus(char status) {
     */
 }
 
-void csafeelliptical::portavailable(bool available) {
+void csafeelliptical::portAvailable(bool available) {
     if (available) {
         qDebug() << "CSAFE port available";
         _connected = true;
@@ -159,130 +201,6 @@ void csafeelliptical::portavailable(bool available) {
         qDebug() << "CSAFE port not available";
         _connected = false;
     }
-}
-
-csafeellipticalThread::csafeellipticalThread() {}
-
-void csafeellipticalThread::run() {
-    QSettings settings;
-
-    QString deviceFilename =
-        settings.value(QZSettings::csafe_elliptical_port, QZSettings::default_csafe_elliptical_port).toString();
-
-    int rc = 0;
-
-    SerialHandler *serial = SerialHandler::create(deviceFilename, B9600);
-    serial->setEndChar(0xf2); // end of frame for CSAFE
-    serial->setTimeout(1200); // CSAFE spec says 1s timeout
-
-    csafe *csafeInstance = new csafe();
-    // int p = 0;
-    int connectioncounter = 20;
-    int lastStatus = -1;
-    while (1) {
-
-        if (connectioncounter > 10) { //! serial->isOpen()) {
-            rc = serial->openPort();
-            if (rc != 0) {
-                emit portavailable(false);
-                connectioncounter++;
-                qDebug() << "Error opening serial port " << deviceFilename << "rc=" << rc << " sleeping for "
-                         << connectioncounter << "s";
-                QThread::msleep(connectioncounter * 1000);
-                continue;
-            } else {
-                emit portavailable(true);
-                connectioncounter = 0;
-            }
-        }
-
-        QStringList command;
-
-        command << "CSAFE_GETPOWER_CMD";
-        command << "CSAFE_GETSPEED_CMD";
-        command << "CSAFE_GETCALORIES_CMD";
-        command << "CSAFE_GETHRCUR_CMD";
-        command << "CSAFE_GETHORIZONTAL_CMD";
-
-        QByteArray ret = csafeInstance->write(command, false);
-
-        qDebug() << "CSAFE >> " << ret.toHex(' ');
-        rc = serial->rawWrite((uint8_t *)ret.data(), ret.length());
-        if (rc < 0) {
-            qDebug() << "Error writing serial port " << deviceFilename << "rc=" << rc;
-            connectioncounter++;
-            continue;
-        }
-
-        static uint8_t rx[120];
-        rc = serial->rawRead(rx, 100, true);
-        if (rc > 0) {
-            qDebug() << "CSAFE << " << QByteArray::fromRawData((const char *)rx, rc).toHex(' ');
-        } else {
-            qDebug() << "Error reading serial port " << deviceFilename << " rc=" << rc;
-            connectioncounter++;
-            continue;
-        }
-
-        // TODO: check if i needs to be set to rc to process full line
-
-        QVector<quint8> v;
-        for (int i = 0; i < 64; i++)
-            v.append(rx[i]);
-        QVariantMap f = csafeInstance->read(v);
-      //  qDebug() << f;
-
-        emit onCsafeFrame(f);
-
-        if (f["CSAFE_GETCADENCE_CMD"].isValid()) {
-            emit onCadence(f["CSAFE_GETCADENCE_CMD"].value<QVariantList>()[0].toDouble());
-        }
-        if (f["CSAFE_GETPACE_CMD"].isValid()) {
-            emit onPace(f["CSAFE_GETPACE_CMD"].value<QVariantList>()[0].toDouble());
-        }
-        if (f["CSAFE_GETSPEED_CMD"].isValid()) {
-            double speed = f["CSAFE_GETSPEED_CMD"].value<QVariantList>()[0].toDouble();
-            int unit = f["CSAFE_GETSPEED_CMD"].value<QVariantList>()[1].toInt();
-            qDebug() << "Speed value:" << speed << "unit:" << CSafeUtility::getUnitName(unit) << "(" << unit << ")";
-
-            if (unit == 82) { // revs/minute
-                emit onCadence(speed);
-                //   emit onSpeed(CSafeUtility::convertToStandard(unit, speed) * 60 * 2.35 / 1000);
-            } else {
-                emit onSpeed(CSafeUtility::convertToStandard(unit, speed));
-            }
-        }
-        if (f["CSAFE_GETPOWER_CMD"].isValid()) {
-            emit onPower(f["CSAFE_GETPOWER_CMD"].value<QVariantList>()[0].toDouble());
-        }
-        if (f["CSAFE_GETHRCUR_CMD"].isValid()) {
-            emit onHeart(f["CSAFE_GETHRCUR_CMD"].value<QVariantList>()[0].toDouble());
-        }
-        if (f["CSAFE_GETCALORIES_CMD"].isValid()) {
-            emit onCalories(f["CSAFE_GETCALORIES_CMD"].value<QVariantList>()[0].toDouble());
-        }
-        if (f["CSAFE_GETHORIZONTAL_CMD"].isValid()) {
-            double distance = f["CSAFE_GETHORIZONTAL_CMD"].value<QVariantList>()[0].toDouble();
-            int unit = f["CSAFE_GETHORIZONTAL_CMD"].value<QVariantList>()[1].toInt();
-            qDebug() << "Distance value:" << distance << "unit:" << CSafeUtility::getUnitName(unit) << "(" << unit
-                     << ")" << CSafeUtility::convertToStandard(unit, distance);
-            emit onDistance(CSafeUtility::convertToStandard(unit, distance));
-        }
-        if (f["CSAFE_GETSTATUS_CMD"].isValid()) {
-            u_int16_t statusvalue = f["CSAFE_GETSTATUS_CMD"].value<QVariantList>()[0].toUInt();
-            qDebug() << "Status value:" << statusvalue << " lastStatus:" << lastStatus
-                     << " statusvalue & 0x0f:" << (statusvalue & 0x0f);
-            if (statusvalue != lastStatus) {
-                lastStatus = statusvalue;
-                char statusChar = static_cast<char>(statusvalue & 0x0f);
-                emit onStatus(statusChar);
-            }
-        }
-
-        memset(rx, 0x00, sizeof(rx));
-        QThread::msleep(250);
-    }
-    serial->closePort();
 }
 
 void csafeelliptical::update() {

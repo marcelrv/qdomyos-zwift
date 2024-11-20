@@ -28,9 +28,8 @@
 
 #include "devices/csafe/csafeutility.h"
 #include "devices/csafe/csafe.h"
-
 #include "devices/csafe/serialhandler.h"
-//#include "netserial.h"
+#include "devices/csafe/csaferunner.h"
 //#include "serialport.h"
 
 #include "devices/elliptical.h"
@@ -74,9 +73,6 @@
 #include "ios/lockscreen.h"
 #endif
 
-/* read timeouts in microseconds */
-#define CT_READTIMEOUT 1000
-#define CT_WRITETIMEOUT 2000
 
 class csafeellipticalThread : public QThread {
     Q_OBJECT
@@ -122,6 +118,7 @@ class csafeelliptical : public elliptical {
     QByteArray lastPacket;
     QDateTime lastRefreshCharacteristicChanged = QDateTime::currentDateTime();
     uint8_t firstStateChanged = 0;
+    int lastStatus = -1;
 
     uint16_t watts() override;
 
@@ -157,7 +154,7 @@ class csafeelliptical : public elliptical {
     void onPace(double pace);
     void onStatus(char status);
     void onSpeed(double speed);
-    void portavailable(bool available);
+    void portAvailable(bool available);
         void onCsafeFrame(const QVariantMap &frame);
 
 
