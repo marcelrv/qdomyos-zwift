@@ -26,10 +26,10 @@
 #include <QObject>
 #include <QString>
 
-#include "csafeutility.h"
-#include "devices/csaferower/csafe.h"
+#include "devices/csafe/csafeutility.h"
+#include "devices/csafe/csafe.h"
 
-#include "serialhandler.h"
+#include "devices/csafe/serialhandler.h"
 //#include "netserial.h"
 //#include "serialport.h"
 
@@ -97,6 +97,7 @@ class csafeellipticalThread : public QThread {
     void onStatus(char status);
     void onSpeed(double speed);
     void portavailable(bool available);
+    void onCsafeFrame(const QVariantMap &frame);
 
   private:
 
@@ -157,6 +158,8 @@ class csafeelliptical : public elliptical {
     void onStatus(char status);
     void onSpeed(double speed);
     void portavailable(bool available);
+        void onCsafeFrame(const QVariantMap &frame);
+
 
   public slots:
     void deviceDiscovered(const QBluetoothDeviceInfo &device);

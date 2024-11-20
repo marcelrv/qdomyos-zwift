@@ -42,6 +42,7 @@ csafeelliptical::csafeelliptical(bool noWriteResistance, bool noHeartService, bo
     connect(t, &csafeellipticalThread::onStatus, this, &csafeelliptical::onStatus);
     connect(t, &csafeellipticalThread::onSpeed, this, &csafeelliptical::onSpeed);
     connect(t, &csafeellipticalThread::portavailable, this, &csafeelliptical::portavailable);
+    connect(t, &csafeellipticalThread::onCsafeFrame, this, &csafeelliptical::onCsafeFrame);
     t->start();
 }
 
@@ -71,6 +72,10 @@ void csafeelliptical::onCadence(double cadence) {
     qDebug() << "Current Cadence received:" << cadence << " updated:" << distanceIsChanging;
     if (distanceIsChanging)
         Cadence = cadence;
+}
+
+void csafeelliptical::onCsafeFrame(const QVariantMap &frame) {
+    qDebug() << "Current CSAFE frame received:" << frame;
 }
 
 void csafeelliptical::onHeart(double hr) {
@@ -225,6 +230,10 @@ void csafeellipticalThread::run() {
         for (int i = 0; i < 64; i++)
             v.append(rx[i]);
         QVariantMap f = csafeInstance->read(v);
+      //  qDebug() << f;
+
+        emit onCsafeFrame(f);
+
         if (f["CSAFE_GETCADENCE_CMD"].isValid()) {
             emit onCadence(f["CSAFE_GETCADENCE_CMD"].value<QVariantList>()[0].toDouble());
         }
