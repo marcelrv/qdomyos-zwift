@@ -13,15 +13,13 @@ void CsafeRunnerThread::setBaudRate(speed_t _baudRate) { baudRate = _baudRate; }
 
 void CsafeRunnerThread::setSleepTime(int time) { sleepTime = time; }
 
-void CsafeRunnerThread::run() {
-    /*  QSettings settings;
+void CsafeRunnerThread::setRefreshCommands(const QStringList &commands) { refreshCommands = commands; }
 
-      QString deviceFilename =
-          settings.value(QZSettings::csafe_elliptical_port, QZSettings::default_csafe_elliptical_port).toString();
-  */
+void CsafeRunnerThread::run() {
+
     int rc = 0;
 
-    SerialHandler *serial = SerialHandler::create(deviceName, B9600);
+    SerialHandler *serial = SerialHandler::create(deviceName, baudRate);
     serial->setEndChar(0xf2); // end of frame for CSAFE
     serial->setTimeout(1200); // CSAFE spec says 1s timeout
 
@@ -46,15 +44,9 @@ void CsafeRunnerThread::run() {
             }
         }
 
-        QStringList command;
+        // TODO: check if if there are pending commands to be sent
 
-        command << "CSAFE_GETPOWER_CMD";
-        command << "CSAFE_GETSPEED_CMD";
-        command << "CSAFE_GETCALORIES_CMD";
-        command << "CSAFE_GETHRCUR_CMD";
-        command << "CSAFE_GETHORIZONTAL_CMD";
-
-        QByteArray ret = csafeInstance->write(command, false);
+        QByteArray ret = csafeInstance->write(refreshCommands, false);
 
         qDebug() << "CSAFE >> " << ret.toHex(' ');
         rc = serial->rawWrite((uint8_t *)ret.data(), ret.length());
@@ -85,7 +77,7 @@ void CsafeRunnerThread::run() {
         emit onCsafeFrame(f);
 
         memset(rx, 0x00, sizeof(rx));
-        QThread::msleep(250);
+        QThread::msleep(sleepTime);
     }
     serial->closePort();
 }

@@ -16,6 +16,7 @@ class CsafeRunnerThread : public QThread {
     void setDevice(const QString &device);
     void setBaudRate(speed_t baudRate = B9600);
     void setSleepTime(int time);
+    void setRefreshCommands(const QStringList &commands);
     void run();
 
   signals:
@@ -26,4 +27,5 @@ class CsafeRunnerThread : public QThread {
     QString deviceName;
     speed_t baudRate = B9600;
     int sleepTime = 200;
+    QStringList refreshCommands;
 };

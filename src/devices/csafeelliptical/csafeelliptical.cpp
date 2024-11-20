@@ -37,11 +37,20 @@ csafeelliptical::csafeelliptical(bool noWriteResistance, bool noHeartService, bo
     QString deviceFilename =
         settings.value(QZSettings::csafe_elliptical_port, QZSettings::default_csafe_elliptical_port).toString();
     CsafeRunnerThread *t = new CsafeRunnerThread(deviceFilename);
+        QStringList command;
 
+        command << "CSAFE_GETPOWER_CMD";
+        command << "CSAFE_GETSPEED_CMD";
+        command << "CSAFE_GETCALORIES_CMD";
+        command << "CSAFE_GETHRCUR_CMD";
+        command << "CSAFE_GETHORIZONTAL_CMD";
+        t->setRefreshCommands(command);
     connect(t, &CsafeRunnerThread::portAvailable, this, &csafeelliptical::portAvailable);
     connect(t, &CsafeRunnerThread::onCsafeFrame, this, &csafeelliptical::onCsafeFrame);
     t->start();
 }
+
+
 
 // Life Fitness 95x does not return pace. Other models might
 void csafeelliptical::onPace(double pace) {
