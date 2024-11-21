@@ -195,8 +195,12 @@ void csafeelliptical::portAvailable(bool available) {
     if (available) {
         qDebug() << "CSAFE port available";
         _connected = true;
-        QStringList command = {"CSAFE_SETUSERINFO_CMD", "88", "51", "0"};
+        QStringList command = {"CSAFE_SETUSERINFO_CMD",
+                               QString::number(settings.value(QZSettings::weight, QZSettings::default_weight).toInt()),
+                               "39", QString::number(settings.value(QZSettings::age, QZSettings::default_age).toInt()),
+                               "0"}; // weight,weight unit,age,gender
         emit sendCsafeCommand(command);
+        QStringList getinfo;
         emit sendCsafeCommand(QStringList() << "CSAFE_GETUSERINFO_CMD");
     } else {
         qDebug() << "CSAFE port not available";
