@@ -64,14 +64,21 @@ csafe::csafe() {
     cmds["CSAFE_PM_GET_WORKTIME"] = populateCmd(0xa0, QList<int>(), 0x1a);
     cmds["CSAFE_PM_GET_WORKDISTANCE"] = populateCmd(0xa3, QList<int>(), 0x1a);
 
+    // Generic long commands
+    cmds["CSAFE_SETUSERINFO_CMD"] = populateCmd(0x2B, QList<int>() << 2 << 1 << 1 << 1);
+    cmds["CSAFE_SETLEVEL_CMD"] = populateCmd(0x2D, QList<int>() << 1);
+
+    // Generic Short Commands
+    cmds["CSAFE_GETSTATUS_CMD"] = populateCmd(0x80, QList<int>());
     cmds["CSAFE_GETCALORIES_CMD"] = populateCmd(0xa3, QList<int>());
+    cmds["CSAFE_GETPROGRAM_CMD"] = populateCmd(0xA4, QList<int>());
     cmds["CSAFE_GETPACE_CMD"] = populateCmd(0xa6, QList<int>());
     cmds["CSAFE_GETCADENCE_CMD"] = populateCmd(0xa7, QList<int>());
-    cmds["CSAFE_GETHRCUR_CMD"] = populateCmd(0xb0, QList<int>());
-    cmds["CSAFE_GETPOWER_CMD"] = populateCmd(0xb4, QList<int>());
-    cmds["CSAFE_GETSTATUS_CMD"] = populateCmd(0x80, QList<int>());
     cmds["CSAFE_GETHORIZONTAL_CMD"] = populateCmd(0xA1, QList<int>());
     cmds["CSAFE_GETSPEED_CMD"] = populateCmd(0xA5, QList<int>());
+
+    cmds["CSAFE_GETHRCUR_CMD"] = populateCmd(0xb0, QList<int>());
+    cmds["CSAFE_GETPOWER_CMD"] = populateCmd(0xb4, QList<int>());
 
     // Response Data to Short Commands
     resp[0x80] = qMakePair(QString("CSAFE_GETSTATUS_CMD"), QList<int>() << 0);
@@ -91,7 +98,7 @@ csafe::csafe() {
     resp[0xA0] = qMakePair(QString("CSAFE_GETTWORK_CMD"), QList<int>() << 1 << 1 << 1);
     resp[0xA1] = qMakePair(QString("CSAFE_GETHORIZONTAL_CMD"), QList<int>() << 2 << 1);
     resp[0xA3] = qMakePair(QString("CSAFE_GETCALORIES_CMD"), QList<int>() << 2);
-    resp[0xA4] = qMakePair(QString("CSAFE_GETPROGRAM_CMD"), QList<int>() << 1);
+    resp[0xA4] = qMakePair(QString("CSAFE_GETPROGRAM_CMD"), QList<int>() << 1 << 1);
     resp[0xA5] = qMakePair(QString("CSAFE_GETSPEED_CMD"), QList<int>() << 2 << 1);
     resp[0xA6] = qMakePair(QString("CSAFE_GETPACE_CMD"), QList<int>() << 2 << 1);
     resp[0xA7] = qMakePair(QString("CSAFE_GETCADENCE_CMD"), QList<int>() << 2 << 1);
@@ -110,6 +117,8 @@ csafe::csafe() {
     resp[0x21] = qMakePair(QString("CSAFE_SETHORIZONTAL_CMD"), QList<int>() << 0);
     resp[0x23] = qMakePair(QString("CSAFE_SETCALORIES_CMD"), QList<int>() << 0);
     resp[0x24] = qMakePair(QString("CSAFE_SETPROGRAM_CMD"), QList<int>() << 0);
+    resp[0x2B] = qMakePair(QString("CSAFE_SETUSERINFO_CMD"), QList<int>() << 0);
+    resp[0x2D] = qMakePair(QString("CSAFE_SETLEVEL_CMD"), QList<int>() << 0);
     resp[0x34] = qMakePair(QString("CSAFE_SETPOWER_CMD"), QList<int>() << 0);
     resp[0x70] = qMakePair(QString("CSAFE_GETCAPS_CMD"), QList<int>() << 11);
 
@@ -460,4 +469,3 @@ QVariantMap csafe::read(const QVector<quint8> &transmission) {
 
     return response;
 }
-
