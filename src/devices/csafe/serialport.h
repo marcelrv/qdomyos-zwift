@@ -64,6 +64,7 @@ class Serialport : public SerialHandler {
 
     // Port control
     int openPort() override;
+    int dataAvailable() override;
     int closePort() override;
 
     // Data transfer

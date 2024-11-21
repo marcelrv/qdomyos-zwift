@@ -157,6 +157,31 @@ int Serialport::openPort() {
     return 0;
 }
 
+int Serialport::dataAvailable() {
+    if (!isOpen()) {
+        return -1;
+    }
+
+#ifdef Q_OS_ANDROID
+    jint len = QAndroidJniObject::callStaticMethod<jint>("org/cagnulen/qdomyoszwift/Usbserial", "readLen", "()I");
+    static_cast<size_t>(len);
+
+#elif defined(WIN32)
+    COMSTAT cs;
+    if (!ClearCommError(fd_, NULL, &cs)) {
+        return -1;
+    }
+    return static_cast<size_t>(cs.cbInQue);
+#else
+    int count = 0;
+    if (-1 == ioctl(devicePort, TIOCINQ, &count)) {
+        return 0;
+    } else {
+        return static_cast<size_t>(count);
+    }
+#endif
+}
+
 int Serialport::rawWrite(uint8_t *bytes, int size) {
     qDebug() << "Writing data:" << QByteArray((const char *)bytes, size).toHex();
     int rc = 0;

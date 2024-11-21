@@ -28,12 +28,9 @@ csafeelliptical::csafeelliptical(bool noWriteResistance, bool noHeartService, bo
     refresh = new QTimer(this);
     this->noWriteResistance = noWriteResistance;
     this->noHeartService = noHeartService;
-    this->noVirtualDevice = noVirtualDevice; // noVirtualDevice;
-    initDone = false;
+    this->noVirtualDevice = noVirtualDevice;
     connect(refresh, &QTimer::timeout, this, &csafeelliptical::update);
     refresh->start(200ms);
-
-    QSettings settings;
     QString deviceFilename =
         settings.value(QZSettings::csafe_elliptical_port, QZSettings::default_csafe_elliptical_port).toString();
     CsafeRunnerThread *t = new CsafeRunnerThread(deviceFilename);
@@ -51,42 +48,11 @@ csafeelliptical::csafeelliptical(bool noWriteResistance, bool noHeartService, bo
     t->start();
 }
 
-// Life Fitness 95x does not return pace. Other models might
-void csafeelliptical::onPace(double pace) {
-    qDebug() << "Current Pace received:" << pace << " updated:" << distanceIsChanging;
-    if (distanceIsChanging && pace > 0)
-        Speed = (60.0 / (double)(pace)) * 60.0;
-    else
-        Speed = 0;
-    qDebug() << "Current Speed calculated:" << Speed.value() << pace;
-}
-
-void csafeelliptical::onSpeed(double speed) {
-    qDebug() << "Current Speed received:" << speed << " updated:" << distanceIsChanging;
-    if (distanceIsChanging)
-        Speed = speed;
-}
-
-void csafeelliptical::onPower(double power) {
-    qDebug() << "Current Power received:" << power << " updated:" << distanceIsChanging;
-    if (distanceIsChanging)
-        m_watt = power;
-}
-
-void csafeelliptical::onCadence(double cadence) {
-    qDebug() << "Current Cadence received:" << cadence << " updated:" << distanceIsChanging;
-    if (distanceIsChanging)
-        Cadence = cadence;
-}
-
 void csafeelliptical::onCsafeFrame(const QVariantMap &csafeFrame) {
     // qDebug() << "Current CSAFE frame received:" << csafeFrame;
 
     if (csafeFrame["CSAFE_GETCADENCE_CMD"].isValid()) {
         onCadence(csafeFrame["CSAFE_GETCADENCE_CMD"].value<QVariantList>()[0].toDouble());
-    }
-    if (csafeFrame["CSAFE_GETPACE_CMD"].isValid()) {
-        onPace(csafeFrame["CSAFE_GETPACE_CMD"].value<QVariantList>()[0].toDouble());
     }
     if (csafeFrame["CSAFE_GETSPEED_CMD"].isValid()) {
         double speed = csafeFrame["CSAFE_GETSPEED_CMD"].value<QVariantList>()[0].toDouble();
@@ -132,6 +98,24 @@ void csafeelliptical::onCsafeFrame(const QVariantMap &csafeFrame) {
             onStatus(statusChar);
         }
     }
+}
+
+void csafeelliptical::onSpeed(double speed) {
+    qDebug() << "Current Speed received:" << speed << " updated:" << distanceIsChanging;
+    if (distanceIsChanging)
+        Speed = speed;
+}
+
+void csafeelliptical::onPower(double power) {
+    qDebug() << "Current Power received:" << power << " updated:" << distanceIsChanging;
+    if (distanceIsChanging)
+        m_watt = power;
+}
+
+void csafeelliptical::onCadence(double cadence) {
+    qDebug() << "Current Cadence received:" << cadence << " updated:" << distanceIsChanging;
+    if (distanceIsChanging)
+        Cadence = cadence;
 }
 
 void csafeelliptical::onHeart(double hr) {
@@ -211,16 +195,9 @@ void csafeelliptical::portAvailable(bool available) {
     if (available) {
         qDebug() << "CSAFE port available";
         _connected = true;
-        QStringList command = {"CSAFE_SETUSERINFO_CMD", "88", "39", "51", "0"};
+        QStringList command = {"CSAFE_SETUSERINFO_CMD", "88", "51", "0"};
         emit sendCsafeCommand(command);
-
-        QStringList command2;
-        command2 << "CSAFE_GETPOWER_CMD";
-        // QStringList command2 = {"CSAFE_GETUSERINFO_CMD", "CSAFE_GETPROGRAM_CMD"};
-        emit sendCsafeCommand(command2);
-
-        qDebug() << "CSAFE port commands emitted!!!!!!!!!!!!!!!!!!!!!!!!!!!";
-
+        emit sendCsafeCommand(QStringList() << "CSAFE_GETUSERINFO_CMD");
     } else {
         qDebug() << "CSAFE port not available";
         _connected = false;
@@ -319,17 +296,10 @@ void csafeelliptical::update() {
 #endif
     }
 
-    /*
-    if (Heart.value()) {
-        static double lastKcal = 0;
-        if (KCal.value() < 0) // if the user pressed stop, the KCAL resets the accumulator
-            lastKcal = abs(KCal.value());
-        KCal = metric::calculateKCalfromHR(Heart.average(), elapsed.value()) + lastKcal;
-    }*/
-
     if (requestResistance != -1 && requestResistance != currentResistance().value()) {
-        Resistance = requestResistance;
-        emit debug(QStringLiteral("Writing resistance ") + QString::number(requestResistance));
+        if (!noWriteResistance) {
+            changeResistance(requestResistance);
+        }
     }
 }
 
@@ -342,10 +312,8 @@ void csafeelliptical::ftmsCharacteristicChanged(const QLowEnergyCharacteristic &
 void csafeelliptical::changeInclinationRequested(double grade, double percentage) {
     if (percentage < 0)
         percentage = 0;
-    //   changeInclination(grade, percentage);
-    emit debug(QStringLiteral("Running    changeInclination(grade, percentage);"));
-    emit debug(QStringLiteral("Writing grade ") + QString::number(grade));
-    emit debug(QStringLiteral("Writing percentage  ") + QString::number(percentage));
+    changeInclination(grade, percentage);
+    qDebug() << "Requested grade:" << grade << " percentage:" << percentage;
 }
 
 void csafeelliptical::changeResistance(resistance_t res) {
@@ -353,10 +321,10 @@ void csafeelliptical::changeResistance(resistance_t res) {
         res = 0;
     if (res > 25)
         res = 25;
-
     QStringList resistanceCommand = {"CSAFE_SETLEVEL_CMD", QString::number(res)};
     emit sendCsafeCommand(resistanceCommand);
     qDebug() << "Send resistance update to device. Requested resitance: " << res;
+    emit sendCsafeCommand(QStringList() << "CSAFE_GETPROGRAM_CMD");
 }
 
 bool csafeelliptical::connected() { return _connected; }

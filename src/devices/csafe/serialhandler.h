@@ -17,6 +17,7 @@ class SerialHandler {
     virtual int closePort() = 0;
     virtual int rawWrite(uint8_t *bytes, int size) = 0;
     virtual int rawRead(uint8_t bytes[], int size, bool line = false) = 0;
+    virtual int dataAvailable() = 0;
     virtual bool isOpen() const = 0;
 
     // Common configuration methods

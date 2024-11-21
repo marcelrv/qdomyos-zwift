@@ -12,6 +12,7 @@ class NetSerial : public SerialHandler {
 
     int openPort() override;
     int closePort() override;
+    int dataAvailable() override;
     int rawWrite(uint8_t *bytes, int size) override;
     int rawRead(uint8_t bytes[], int size, bool line = false) override;
 

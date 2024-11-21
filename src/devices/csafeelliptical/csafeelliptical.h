@@ -120,6 +120,7 @@ class csafeelliptical : public elliptical {
     QDateTime lastRefreshCharacteristicChanged = QDateTime::currentDateTime();
     uint8_t firstStateChanged = 0;
     int lastStatus = -1;
+    QSettings settings;
 
     uint16_t watts() override;
 
@@ -154,7 +155,6 @@ class csafeelliptical : public elliptical {
     void onHeart(double hr);
     void onCalories(double calories);
     void onDistance(double distance);
-    void onPace(double pace);
     void onStatus(char status);
     void onSpeed(double speed);
     void portAvailable(bool available);

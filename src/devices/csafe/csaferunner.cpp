@@ -13,7 +13,11 @@ void CsafeRunnerThread::setBaudRate(speed_t _baudRate) { baudRate = _baudRate; }
 
 void CsafeRunnerThread::setSleepTime(int time) { sleepTime = time; }
 
-void CsafeRunnerThread::setRefreshCommands(const QStringList &commands) { refreshCommands = commands; }
+void CsafeRunnerThread::setRefreshCommands(const QStringList &commands) {
+    mutex.lock();
+    refreshCommands = commands;
+    mutex.unlock();
+}
 
 void CsafeRunnerThread::sendCommand(const QStringList &commands) {
     mutex.lock();
@@ -21,10 +25,8 @@ void CsafeRunnerThread::sendCommand(const QStringList &commands) {
         commandQueue.enqueue(commands);
         mutex.unlock();
     } else {
-        qDebug() << "CSAFE port commands QUEUE FULL!!!!!!!!!!!!!!!!!!!!!!!!!!!";
-        
+        qDebug() << "CSAFE port commands QUEUE FULL. Dropping commands" << commands;
     }
-    qDebug() << "CSAFE port commands RECEIVED!!!!!!!!!!!!!!!!!!!!!!!!!!!";
 }
 
 void CsafeRunnerThread::run() {
@@ -40,14 +42,14 @@ void CsafeRunnerThread::run() {
 
     while (1) {
 
-        if (connectioncounter > 10) { //! serial->isOpen()) {
+        if (connectioncounter > 10 || !serial->isOpen()) {
             rc = serial->openPort();
             if (rc != 0) {
                 emit portAvailable(false);
                 connectioncounter++;
                 qDebug() << "Error opening serial port " << deviceName << "rc=" << rc << " sleeping for "
-                         << "10s";
-                QThread::msleep(10000);
+                         << "5s";
+                QThread::msleep(5000);
                 continue;
             } else {
                 emit portAvailable(true);
@@ -55,25 +57,49 @@ void CsafeRunnerThread::run() {
             }
         }
 
+        int elapsed = 0;
+        while (elapsed < sleepTime || sleepTime == -1) {
+            QThread::msleep(50);
+            elapsed += 50;
+            //  TODO: does not seem to work with netsocket as intended. (no dataavailable)
+            // Needs further testing, maybe because the port is already closed and needs to remain open.
+            // No issue for current implementations as theydo not use unsolicited slave data / cmdAutoUpload .
+            if (serial->dataAvailable() > 0 || !commandQueue.isEmpty()) {
+                qDebug() << "CSAFE port data available. " << serial->dataAvailable() << " bytes"
+                         << "commands in queue: " << commandQueue.size();
+                break;
+            }
+        }
+
+        QByteArray ret;
         mutex.lock();
         if (!commandQueue.isEmpty()) {
-            qDebug() << "CSAFE port commands PROCESSSED!!!!!!!!!!!!!!!!!!!!!!!!!!!";
+            ret = csafeInstance->write(commandQueue.dequeue());
+            qDebug() << "CSAFE port commands processed from queue. Remaining commands in queue: "
+                     << commandQueue.size();
+        } else {
+            if (!(elapsed < sleepTime) || !refreshCommands.isEmpty()) {
+                ret = csafeInstance->write(refreshCommands);
+            }
         }
-        QByteArray ret = csafeInstance->write(commandQueue.isEmpty() ? refreshCommands : commandQueue.dequeue(), false);
         mutex.unlock();
 
-        qDebug() << "CSAFE >> " << ret.toHex(' ');
-        rc = serial->rawWrite((uint8_t *)ret.data(), ret.length());
-        if (rc < 0) {
-            qDebug() << "Error writing serial port " << deviceName << "rc=" << rc;
-            connectioncounter++;
-            continue;
+        if (!ret.isEmpty()) { // we have commands to send
+            qDebug() << "CSAFE >> " << ret.toHex(' ');
+            rc = serial->rawWrite((uint8_t *)ret.data(), ret.length());
+            if (rc < 0) {
+                qDebug() << "Error writing serial port " << deviceName << "rc=" << rc;
+                connectioncounter++;
+                continue;
+            }
+        } else {
+            qDebug() << "CSAFE Slave unsolicited data present.";
         }
 
         static uint8_t rx[120];
         rc = serial->rawRead(rx, 100, true);
         if (rc > 0) {
-            qDebug() << "CSAFE << " << QByteArray::fromRawData((const char *)rx, rc).toHex(' ');
+            qDebug() << "CSAFE << " << QByteArray::fromRawData((const char *)rx, rc).toHex(' ') << " (" << rc << ")";
         } else {
             qDebug() << "Error reading serial port " << deviceName << " rc=" << rc;
             connectioncounter++;
@@ -81,17 +107,12 @@ void CsafeRunnerThread::run() {
         }
 
         // TODO: check if i needs to be set to rc to process full line
-
         QVector<quint8> v;
         for (int i = 0; i < 64; i++)
             v.append(rx[i]);
         QVariantMap frame = csafeInstance->read(v);
-        //  qDebug() << f;
-
         emit onCsafeFrame(frame);
-
         memset(rx, 0x00, sizeof(rx));
-        QThread::msleep(sleepTime);
     }
     serial->closePort();
 }
