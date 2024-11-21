@@ -6,6 +6,10 @@
 #include <QThread>
 #include <QVariantMap>
 #include <QVector>
+#include <QQueue>
+#include <QMutex>
+
+#define MAX_QUEUE_SIZE 100
 
 class CsafeRunnerThread : public QThread {
     Q_OBJECT
@@ -19,6 +23,9 @@ class CsafeRunnerThread : public QThread {
     void setRefreshCommands(const QStringList &commands);
     void run();
 
+  public slots:
+    void sendCommand(const QStringList &commands);
+
   signals:
     void onCsafeFrame(const QVariantMap &frame);
     void portAvailable(bool available);
@@ -28,4 +35,7 @@ class CsafeRunnerThread : public QThread {
     speed_t baudRate = B9600;
     int sleepTime = 200;
     QStringList refreshCommands;
+    QQueue<QStringList> commandQueue;
+    QMutex mutex;
+
 };

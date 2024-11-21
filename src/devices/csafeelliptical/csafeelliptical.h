@@ -26,11 +26,11 @@
 #include <QObject>
 #include <QString>
 
-#include "devices/csafe/csafeutility.h"
 #include "devices/csafe/csafe.h"
-#include "devices/csafe/serialhandler.h"
 #include "devices/csafe/csaferunner.h"
-//#include "serialport.h"
+#include "devices/csafe/csafeutility.h"
+#include "devices/csafe/serialhandler.h"
+// #include "serialport.h"
 
 #include "devices/elliptical.h"
 #include "virtualdevices/virtualbike.h"
@@ -59,7 +59,7 @@
 #include <QAndroidJniObject>
 #endif
 
-//#include "serialport.h"
+// #include "serialport.h"
 
 #include <errno.h>
 #include <fcntl.h>
@@ -72,7 +72,6 @@
 #ifdef Q_OS_IOS
 #include "ios/lockscreen.h"
 #endif
-
 
 class csafeellipticalThread : public QThread {
     Q_OBJECT
@@ -96,7 +95,6 @@ class csafeellipticalThread : public QThread {
     void onCsafeFrame(const QVariantMap &frame);
 
   private:
-
     QString deviceFilename;
 
 #ifdef Q_OS_ANDROID
@@ -141,11 +139,13 @@ class csafeelliptical : public elliptical {
   signals:
     void disconnected();
     void debug(QString string);
+    void sendCsafeCommand(const QStringList &commands);
 
   private slots:
     void update();
     void ftmsCharacteristicChanged(const QLowEnergyCharacteristic &characteristic, const QByteArray &newValue);
     void changeInclinationRequested(double grade, double percentage);
+    void changeResistance(resistance_t res) override;
     void onPower(double power);
     void onCadence(double cadence);
     void onHeart(double hr);
@@ -155,8 +155,7 @@ class csafeelliptical : public elliptical {
     void onStatus(char status);
     void onSpeed(double speed);
     void portAvailable(bool available);
-        void onCsafeFrame(const QVariantMap &frame);
-
+    void onCsafeFrame(const QVariantMap &frame);
 
   public slots:
     void deviceDiscovered(const QBluetoothDeviceInfo &device);

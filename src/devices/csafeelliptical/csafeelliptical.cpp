@@ -32,25 +32,24 @@ csafeelliptical::csafeelliptical(bool noWriteResistance, bool noHeartService, bo
     initDone = false;
     connect(refresh, &QTimer::timeout, this, &csafeelliptical::update);
     refresh->start(200ms);
-    QSettings settings;
 
+    QSettings settings;
     QString deviceFilename =
         settings.value(QZSettings::csafe_elliptical_port, QZSettings::default_csafe_elliptical_port).toString();
     CsafeRunnerThread *t = new CsafeRunnerThread(deviceFilename);
-        QStringList command;
-
-        command << "CSAFE_GETPOWER_CMD";
-        command << "CSAFE_GETSPEED_CMD";
-        command << "CSAFE_GETCALORIES_CMD";
-        command << "CSAFE_GETHRCUR_CMD";
-        command << "CSAFE_GETHORIZONTAL_CMD";
-        t->setRefreshCommands(command);
+    QStringList command;
+    command << "CSAFE_GETPOWER_CMD";
+    command << "CSAFE_GETSPEED_CMD";
+    command << "CSAFE_GETCALORIES_CMD";
+    command << "CSAFE_GETHRCUR_CMD";
+    command << "CSAFE_GETHORIZONTAL_CMD";
+    command << "CSAFE_GETPROGRAM_CMD";
+    t->setRefreshCommands(command);
     connect(t, &CsafeRunnerThread::portAvailable, this, &csafeelliptical::portAvailable);
     connect(t, &CsafeRunnerThread::onCsafeFrame, this, &csafeelliptical::onCsafeFrame);
+    connect(this, &csafeelliptical::sendCsafeCommand, t, &CsafeRunnerThread::sendCommand, Qt::QueuedConnection);
     t->start();
 }
-
-
 
 // Life Fitness 95x does not return pace. Other models might
 void csafeelliptical::onPace(double pace) {
@@ -80,9 +79,9 @@ void csafeelliptical::onCadence(double cadence) {
         Cadence = cadence;
 }
 
-void csafeelliptical::onCsafeFrame(const QVariantMap &frame) {
-    qDebug() << "Current CSAFE frame received:" << frame;
-    QVariantMap csafeFrame = frame;
+void csafeelliptical::onCsafeFrame(const QVariantMap &csafeFrame) {
+    // qDebug() << "Current CSAFE frame received:" << csafeFrame;
+
     if (csafeFrame["CSAFE_GETCADENCE_CMD"].isValid()) {
         onCadence(csafeFrame["CSAFE_GETCADENCE_CMD"].value<QVariantList>()[0].toDouble());
     }
@@ -117,10 +116,16 @@ void csafeelliptical::onCsafeFrame(const QVariantMap &frame) {
                  << CSafeUtility::convertToStandard(unit, distance);
         onDistance(CSafeUtility::convertToStandard(unit, distance));
     }
+    if (csafeFrame["CSAFE_GETPROGRAM_CMD"].isValid()) {
+        int resistance = csafeFrame["CSAFE_GETPROGRAM_CMD"].value<QVariantList>()[1].toUInt();
+        Resistance = resistance;
+        qDebug() << "Program:" << csafeFrame["CSAFE_GETPROGRAM_CMD"].value<QVariantList>()[0].toUInt()
+                 << "Current level received:" << resistance;
+    }
     if (csafeFrame["CSAFE_GETSTATUS_CMD"].isValid()) {
         u_int16_t statusvalue = csafeFrame["CSAFE_GETSTATUS_CMD"].value<QVariantList>()[0].toUInt();
         qDebug() << "Status value:" << statusvalue << " lastStatus:" << lastStatus
-                 << " statusvalue & 0x0f:" << (statusvalue & 0x0f);
+                 << " Machine state from status:" << (statusvalue & 0x0f);
         if (statusvalue != lastStatus) {
             lastStatus = statusvalue;
             char statusChar = static_cast<char>(statusvalue & 0x0f);
@@ -188,7 +193,7 @@ void csafeelliptical::onDistance(double distance) {
 void csafeelliptical::onStatus(char status) {
     QString statusString = CSafeUtility::statusByteToText(status);
     qDebug() << "Current Status code:" << status << " status: " << statusString;
-//TODO: set pause status if applicable
+    // TODO: set pause status if applicable
     /*
         0x00: Error
     0x01: Ready
@@ -206,6 +211,16 @@ void csafeelliptical::portAvailable(bool available) {
     if (available) {
         qDebug() << "CSAFE port available";
         _connected = true;
+        QStringList command = {"CSAFE_SETUSERINFO_CMD", "88", "39", "51", "0"};
+        emit sendCsafeCommand(command);
+
+        QStringList command2;
+        command2 << "CSAFE_GETPOWER_CMD";
+        // QStringList command2 = {"CSAFE_GETUSERINFO_CMD", "CSAFE_GETPROGRAM_CMD"};
+        emit sendCsafeCommand(command2);
+
+        qDebug() << "CSAFE port commands emitted!!!!!!!!!!!!!!!!!!!!!!!!!!!";
+
     } else {
         qDebug() << "CSAFE port not available";
         _connected = false;
@@ -331,6 +346,17 @@ void csafeelliptical::changeInclinationRequested(double grade, double percentage
     emit debug(QStringLiteral("Running    changeInclination(grade, percentage);"));
     emit debug(QStringLiteral("Writing grade ") + QString::number(grade));
     emit debug(QStringLiteral("Writing percentage  ") + QString::number(percentage));
+}
+
+void csafeelliptical::changeResistance(resistance_t res) {
+    if (res < 0)
+        res = 0;
+    if (res > 25)
+        res = 25;
+
+    QStringList resistanceCommand = {"CSAFE_SETLEVEL_CMD", QString::number(res)};
+    emit sendCsafeCommand(resistanceCommand);
+    qDebug() << "Send resistance update to device. Requested resitance: " << res;
 }
 
 bool csafeelliptical::connected() { return _connected; }
