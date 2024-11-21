@@ -177,18 +177,15 @@ void csafeelliptical::onDistance(double distance) {
 void csafeelliptical::onStatus(char status) {
     QString statusString = CSafeUtility::statusByteToText(status);
     qDebug() << "Current Status code:" << status << " status: " << statusString;
-    // TODO: set pause status if applicable
-    /*
-        0x00: Error
-    0x01: Ready
-    0x02: Idle
-    0x03: Have ID
-    0x05: In Use
-    0x06: Pause
-    0x07: Finish
-    0x08: Manual
-    0x09: Off line
-    */
+    if (status == 0x06 || status == 0x09) {
+        // pause || offline
+        paused = true;
+        m_watt = 0.0;
+        Cadence = 0.0;
+        Speed = 0.0;
+    } else {
+        paused = false;
+    }
 }
 
 void csafeelliptical::portAvailable(bool available) {
@@ -200,7 +197,6 @@ void csafeelliptical::portAvailable(bool available) {
                                "39", QString::number(settings.value(QZSettings::age, QZSettings::default_age).toInt()),
                                "0"}; // weight,weight unit,age,gender
         emit sendCsafeCommand(command);
-        QStringList getinfo;
         emit sendCsafeCommand(QStringList() << "CSAFE_GETUSERINFO_CMD");
     } else {
         qDebug() << "CSAFE port not available";
