@@ -97,7 +97,7 @@ void CsafeRunnerThread::run() {
         }
 
         static uint8_t rx[120];
-        rc = serial->rawRead(rx, 100, true);
+        rc = serial->rawRead(rx, 120, true);
         if (rc > 0) {
             qDebug() << "CSAFE << " << QByteArray::fromRawData((const char *)rx, rc).toHex(' ') << " (" << rc << ")";
         } else {
@@ -106,9 +106,8 @@ void CsafeRunnerThread::run() {
             continue;
         }
 
-        // TODO: check if i needs to be set to rc to process full line
         QVector<quint8> v;
-        for (int i = 0; i < 64; i++)
+        for (int i = 0; i < rc; i++)
             v.append(rx[i]);
         QVariantMap frame = csafeInstance->read(v);
         emit onCsafeFrame(frame);

@@ -76,7 +76,7 @@ csafe::csafe() {
     cmds["CSAFE_GETCADENCE_CMD"] = populateCmd(0xa7, QList<int>());
     cmds["CSAFE_GETHORIZONTAL_CMD"] = populateCmd(0xA1, QList<int>());
     cmds["CSAFE_GETSPEED_CMD"] = populateCmd(0xA5, QList<int>());
-
+    cmds["CSAFE_GETUSERINFO_CMD"] = populateCmd(0xAB, QList<int>());
     cmds["CSAFE_GETHRCUR_CMD"] = populateCmd(0xb0, QList<int>());
     cmds["CSAFE_GETPOWER_CMD"] = populateCmd(0xb4, QList<int>());
 
@@ -222,6 +222,10 @@ QByteArray csafe::write(const QStringList &arguments, bool surround_msg) {
 
     while (i < arguments.size()) {
         QString arg = arguments[i];
+        if (!cmds.contains(arg)) {
+            qWarning("CSAFE Command not implemented: %s", qPrintable(arg));
+            return QByteArray();
+        }
         const auto &cmdprop = cmds[arg];
         QVector<quint8> command;
 
