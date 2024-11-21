@@ -73,6 +73,7 @@
 #include "ios/lockscreen.h"
 #endif
 
+/*
 class csafeellipticalThread : public QThread {
     Q_OBJECT
 
@@ -102,6 +103,8 @@ class csafeellipticalThread : public QThread {
     bool cleanFrame = false;
 #endif
 };
+
+*/
 
 class csafeelliptical : public elliptical {
     Q_OBJECT
