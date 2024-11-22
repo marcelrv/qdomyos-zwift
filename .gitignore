@@ -4,6 +4,7 @@ src/Makefile
 src/.qmake.stash
 
 src/*.o
+tst/*.o
 
 src/moc_*
 src/qrc_*
