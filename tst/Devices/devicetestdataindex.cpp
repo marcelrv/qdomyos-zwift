@@ -171,14 +171,11 @@ void DeviceTestDataIndex::Initialize() {
         ->acceptDeviceName("", DeviceNameComparison::StartsWithIgnoreCase)
         ->configureSettingsWith(QZSettings::csafe_rower, "COMX", "");
 
-
-/* TODO: understand why the test is failing*/
     // CSafe Elliptical
     RegisterNewDeviceTestData(DeviceIndex::CSafeElliptical)
         ->expectDevice<csafeelliptical>()
         ->acceptDeviceName("", DeviceNameComparison::StartsWithIgnoreCase)
         ->configureSettingsWith(QZSettings::csafe_elliptical_port, "COMX", "");
-
 
     cscBikeName = "CyclingSpeedCadenceBike-";
     RegisterNewDeviceTestData(DeviceIndex::CSCBike)

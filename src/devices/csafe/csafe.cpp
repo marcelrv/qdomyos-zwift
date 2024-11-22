@@ -307,13 +307,12 @@ QByteArray csafe::write(const QStringList &arguments, bool surround_msg) {
     message.prepend(Standard_Frame_Start_Flag); // start frame
     message.append(Stop_Frame_Flag);            // stop frame
 
-    if (surround_msg) {
+    if (message.size() > 96) // check for frame size (96 bytes)
+    {
+        qWarning("Message is too long: %d", message.size());
+    }
 
-        if (message.size() > 96) // check for frame size (96 bytes)
-        {
-            qWarning("Message is too long: %d", message.size());
-        }
-
+    if (surround_msg) { // apply non-standard wrapping for PM3 rower
         int maxmessage = qMax(message.size() + 1, maxresponse); // report IDs
 
         if (maxmessage <= 21) {
