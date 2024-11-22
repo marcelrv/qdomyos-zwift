@@ -9,7 +9,7 @@ CsafeRunnerThread::CsafeRunnerThread(QString deviceFileName, int sleepTime) {
 
 void CsafeRunnerThread::setDevice(const QString &device) { deviceName = device; }
 
-void CsafeRunnerThread::setBaudRate(speed_t _baudRate) { baudRate = _baudRate; }
+void CsafeRunnerThread::setBaudRate(unsigned int _baudRate) { baudRate = _baudRate; }
 
 void CsafeRunnerThread::setSleepTime(int time) { sleepTime = time; }
 
