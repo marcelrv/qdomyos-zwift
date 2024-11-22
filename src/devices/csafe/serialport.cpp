@@ -174,7 +174,7 @@ int Serialport::dataAvailable() {
     return static_cast<size_t>(cs.cbInQue);
 #else
     int count = 0;
-    if (-1 == ioctl(devicePort, TIOCINQ, &count)) {
+    if (-1 == ioctl(devicePort, FIONREAD, &count)) {
         return 0;
     } else {
         return static_cast<size_t>(count);
