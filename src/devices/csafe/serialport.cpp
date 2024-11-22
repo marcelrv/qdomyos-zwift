@@ -3,7 +3,7 @@
 /* ----------------------------------------------------------------------
  * CONSTRUCTOR/DESTRUCTOR
  * ---------------------------------------------------------------------- */
-Serialport::Serialport(QString deviceFilename, speed_t baudRate) {
+Serialport::Serialport(QString deviceFilename, unsigned int baudRate) {
     setDevice(deviceFilename);
     this->baudRate = baudRate;
 }
@@ -65,7 +65,39 @@ int Serialport::openPort() {
     // set raw mode i.e. ignbrk, brkint, parmrk, istrip, inlcr, igncr, icrnl, ixon
     //                   noopost, cs8, noecho, noechonl, noicanon, noisig, noiexn
     cfmakeraw(&deviceSettings);
-    cfsetspeed(&deviceSettings, baudRate);
+
+    // set baud rate
+    switch (baudRate) {
+    case 2400:
+        cfsetispeed(&deviceSettings, B2400);
+        cfsetospeed(&deviceSettings, B2400);
+        break;
+    case 9600:
+        cfsetispeed(&deviceSettings, B9600);
+        cfsetospeed(&deviceSettings, B9600);
+        break;
+    case 19200:
+        cfsetispeed(&deviceSettings, B19200);
+        cfsetospeed(&deviceSettings, B19200);
+        break;
+    case 38400:
+        cfsetispeed(&deviceSettings, B38400);
+        cfsetospeed(&deviceSettings, B38400);
+        break;
+    case 57600:
+        cfsetispeed(&deviceSettings, B57600);
+        cfsetospeed(&deviceSettings, B57600);
+        break;
+    case 115200:
+        cfsetispeed(&deviceSettings, B115200);
+        cfsetospeed(&deviceSettings, B115200);
+        break;
+    default:
+        qWarning("Invalid baud rate, defaulting to 9600");
+        cfsetispeed(&deviceSettings, B9600);
+        cfsetospeed(&deviceSettings, B9600);
+        break;
+    }
 
     // further attributes
     deviceSettings.c_iflag &=
@@ -120,8 +152,31 @@ int Serialport::openPort() {
     if (GetCommState(devicePort, &deviceSettings) == false)
         return -1;
 
+    switch (baudRate) {
+    case 2400:
+        deviceSettings.BaudRate = CBR_2400;
+        break;
+    case 9600:
+        deviceSettings.BaudRate = CBR_9600;
+        break;
+    case 19200:
+        deviceSettings.BaudRate = CBR_19200;
+        break;
+    case 38400: // 38400
+        deviceSettings.BaudRate = CBR_38400;
+        break;
+    case 57600: // 57600
+        deviceSettings.BaudRate = CBR_57600;
+        break;
+    case 115200: // 115200
+        deviceSettings.BaudRate = CBR_115200;
+        break;
+    default:
+        qWarning("Invalid baud rate, defaulting to 9600");
+        deviceSettings.BaudRate = CBR_9600;
+        break;
+    }
     // so we've opened the comm port lets set it up for
-    deviceSettings.BaudRate = CBR_9600;
     deviceSettings.fParity = NOPARITY;
     deviceSettings.ByteSize = 8;
     deviceSettings.StopBits = ONESTOPBIT;

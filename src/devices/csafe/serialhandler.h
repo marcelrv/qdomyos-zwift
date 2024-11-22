@@ -3,14 +3,13 @@
 
 #include <QString>
 #include <cstdint>
-#include <termios.h> // For speed_t type
 
 class SerialHandler {
   public:
     virtual ~SerialHandler() = 0; // Pure virtual destructor
 
     // Factory method to create the appropriate serial handler
-    static SerialHandler *create(const QString &deviceFilename, speed_t baudRate);
+    static SerialHandler *create(const QString &deviceFilename, unsigned int baudRate);
 
     // Abstract interface for serial operations
     virtual int openPort() = 0;

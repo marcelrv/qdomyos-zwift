@@ -54,7 +54,7 @@
 
 class Serialport : public SerialHandler {
   public:
-    Serialport(QString deviceFilename, speed_t baudRate);
+    Serialport(QString deviceFilename, unsigned int baudRate);
     ~Serialport() override;
 
     // Device management
@@ -74,9 +74,7 @@ class Serialport : public SerialHandler {
     bool isOpen() const override;
 
   private:
-    // i/o message holder
-  //  uint8_t buf[7];
-    speed_t baudRate = B9600;
+    unsigned int baudRate = 9600;
     uint8_t endChar = 0x0D;
     int _timeout = 1200;
     QString deviceFilename;
