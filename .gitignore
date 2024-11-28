@@ -58,3 +58,12 @@ src/inner_templates/googlemaps/cesium-key.js
 .vscode/settings.json
 /tst/Devices/.vs
 src/inner_templates/googlemaps/cesium-key.js
+src/libqdomyos-zwift.a
+src/Makefile.qdomyos-zwift
+src/Makefile.qdomyos-zwift-lib
+src/qdomyos-zwift_metatypes.json
+src/qdomyos-zwift_qmltyperegistrations.cpp
+src/qdomyos-zwift.qmltypes
+tst/Makefile.qdomyos-zwift-tests
+.vscode/c_cpp_properties.json
+Makefile
