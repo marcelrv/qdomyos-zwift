@@ -67,3 +67,6 @@ src/qdomyos-zwift.qmltypes
 tst/Makefile.qdomyos-zwift-tests
 .vscode/c_cpp_properties.json
 Makefile
+tst/moc_bluetoothsignalreceiver.cpp
+tst/moc_predefs.h
+tst/qdomyos-zwift-tests
