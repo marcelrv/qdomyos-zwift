@@ -273,10 +273,12 @@ void csafeelliptical::update() {
             debug("Current Heart: " + QString::number(Heart.value()));
         }
 #endif
+
+/* fix heart rate intermitent issue
         if (heartRateBeltName.startsWith(QStringLiteral("Disabled"))) {
             update_hr_from_external();
         }
-
+*/
 #ifdef Q_OS_IOS
 #ifndef IO_UNDER_QT
         bool cadence =
