@@ -1563,6 +1563,12 @@ void homeform::sortTiles() {
                 target_power->setGridId(i);
                 dataList.append(target_power);
             }
+
+            if (settings.value(QZSettings::tile_target_zone_enabled, false).toBool() &&
+                settings.value(QZSettings::tile_target_zone_order, 24).toInt() == i) {
+                target_zone->setGridId(i);
+                dataList.append(target_zone);
+            }            
         }
     } else if (bluetoothManager->device()->deviceType() == bluetoothdevice::BIKE) {
         for (int i = 0; i < 100; i++) {
@@ -4088,31 +4094,35 @@ void homeform::update() {
             targetMets->setValue(QString::number(trainProgram->currentTargetMets(), 'f', 1));
             trainrow next = trainProgram->getRowFromCurrent(1);
             trainrow next_1 = trainProgram->getRowFromCurrent(2);
-            if (next.duration.second() != 0 || next.duration.minute() != 0 || next.duration.hour() != 0) {
-                if (next.requested_peloton_resistance != -1)
-                    nextRows->setValue(QStringLiteral("PR") + QString::number(next.requested_peloton_resistance) +
-                                       QStringLiteral(" ") + next.duration.toString(QStringLiteral("mm:ss")));
-                else if (next.resistance != -1)
-                    nextRows->setValue(QStringLiteral("R") + QString::number(next.resistance) + QStringLiteral(" ") +
-                                       next.duration.toString(QStringLiteral("mm:ss")));
-                else if (next.zoneHR != -1)
-                    nextRows->setValue(QStringLiteral("HR") + QString::number(next.zoneHR) + QStringLiteral(" ") +
-                                       next.duration.toString(QStringLiteral("mm:ss")));
-                else if (next.HRmin != -1 && next.HRmax != -1)
+            if (next.duration.second() != 0 || next.duration.minute() != 0 || next.duration.hour() != 0 || next.distance != -1) {
+                QString duration = next.duration.toString(QStringLiteral("mm:ss"));
+                if(next.distance != -1) {
+                    duration = QString::number(next.distance, 'f' , 1);
+                }
+                if (next.requested_peloton_resistance != -1) {
+                    nextRows->setValue(QStringLiteral("PR") + QString::number(next.requested_peloton_resistance));
+                    nextRows->setSecondLine(duration);
+                } else if (next.resistance != -1) {
+                    nextRows->setValue(QStringLiteral("R") + QString::number(next.resistance));
+                    nextRows->setSecondLine(duration);
+                } else if (next.zoneHR != -1) {
+                    nextRows->setValue(QStringLiteral("HR") + QString::number(next.zoneHR));
+                    nextRows->setSecondLine(duration);
+                } else if (next.HRmin != -1 && next.HRmax != -1) {
                     nextRows->setValue(QStringLiteral("HR") + QString::number(next.HRmin) + QStringLiteral("-") +
-                                       QString::number(next.HRmax) + QStringLiteral(" ") +
-                                       next.duration.toString(QStringLiteral("mm:ss")));
-                else if (next.speed != -1 && next.inclination != -200)
+                                       QString::number(next.HRmax));
+                    nextRows->setSecondLine(duration);
+                } else if (next.speed != -1 && next.inclination != -200) {
                     nextRows->setValue(QStringLiteral("S") + QString::number(next.speed, 'f' , 1) + QStringLiteral("I") +
-                                       QString::number(next.inclination, 'f' , 1) + QStringLiteral(" ") +
-                                       next.duration.toString(QStringLiteral("mm:ss")));
-                else if (next.speed != -1)
-                    nextRows->setValue(QStringLiteral("S") + QString::number(next.speed, 'f' , 1) + QStringLiteral(" ") +
-                                       next.duration.toString(QStringLiteral("mm:ss")));
-                else if (next.inclination != -200)
-                    nextRows->setValue(QStringLiteral("I") + QString::number(next.inclination, 'f' , 1) + QStringLiteral(" ") +
-                                       next.duration.toString(QStringLiteral("mm:ss")));
-                else if (next.power != -1) {
+                                       QString::number(next.inclination, 'f' , 1));
+                    nextRows->setSecondLine(duration);
+                } else if (next.speed != -1) {
+                    nextRows->setValue(QStringLiteral("S") + QString::number(next.speed, 'f' , 1));
+                    nextRows->setSecondLine(duration);
+                } else if (next.inclination != -200) {
+                    nextRows->setValue(QStringLiteral("I") + QString::number(next.inclination, 'f' , 1));
+                    nextRows->setSecondLine(duration);
+                } else if (next.power != -1) {
                     double ftpPerc = (next.power / ftpSetting) * 100.0;
                     uint8_t ftpZone = 1;
                     if (ftpPerc < 56) {
@@ -4131,16 +4141,20 @@ void homeform::update() {
                         ftpZone = 7;
                     }
                     nextRows->setValue(QStringLiteral("Z") + QString::number(ftpZone) + QStringLiteral(" ") +
-                                       next.duration.toString(QStringLiteral("mm:ss")));
-                    if (next_1.duration.second() != 0 || next_1.duration.minute() != 0 || next_1.duration.hour() != 0) {
+                                       duration);
+                    if (next_1.duration.second() != 0 || next_1.duration.minute() != 0 || next_1.duration.hour() != 0 || next_1.distance != -1) {
+                        QString duration_1 = next_1.duration.toString(QStringLiteral("mm:ss"));
+                        if(next_1.distance != -1) {
+                            duration_1 = QString::number(next_1.distance, 'f' , 1);
+                        }
                         if (next_1.requested_peloton_resistance != -1)
                             nextRows->setSecondLine(
                                 QStringLiteral("PR") + QString::number(next_1.requested_peloton_resistance) +
-                                QStringLiteral(" ") + next_1.duration.toString(QStringLiteral("mm:ss")));
+                                QStringLiteral(" ") + duration_1);
                         else if (next_1.resistance != -1)
                             nextRows->setSecondLine(QStringLiteral("R") + QString::number(next_1.resistance) +
                                                     QStringLiteral(" ") +
-                                                    next_1.duration.toString(QStringLiteral("mm:ss")));
+                                                    duration_1);
                         else if (next_1.power != -1) {
                             double ftpPerc = (next_1.power / ftpSetting) * 100.0;
                             uint8_t ftpZone = 1;
@@ -4161,7 +4175,7 @@ void homeform::update() {
                             }
                             nextRows->setSecondLine(QStringLiteral("Z") + QString::number(ftpZone) +
                                                     QStringLiteral(" ") +
-                                                    next_1.duration.toString(QStringLiteral("mm:ss")));
+                                                    duration_1);
                         }
                     } else {
                         nextRows->setSecondLine(QStringLiteral("N/A"));
@@ -4387,8 +4401,21 @@ void homeform::update() {
                 break;
             }
 
-            this->target_pace->setValue(
-                ((treadmill *)bluetoothManager->device())->lastRequestedPace().toString(QStringLiteral("m:ss")));
+            if (trainProgram) {
+                // in order to see the target pace of a peloton workout even if the speed force for treadmill is disabled
+                this->target_pace->setValue(
+                            ((treadmill *)bluetoothManager->device())->speedToPace(trainProgram->currentRow().speed).toString(QStringLiteral("m:ss")));
+                this->target_pace->setSecondLine(((treadmill *)bluetoothManager->device())
+                                                     ->speedToPace(trainProgram->currentRow().lower_speed)
+                                                     .toString(QStringLiteral("m:ss")) +
+                                                 " - " +
+                                                 ((treadmill *)bluetoothManager->device())
+                                                     ->speedToPace(trainProgram->currentRow().upper_speed)
+                                                     .toString(QStringLiteral("m:ss")));
+            } else {
+                this->target_pace->setValue(
+                    ((treadmill *)bluetoothManager->device())->lastRequestedPace().toString(QStringLiteral("m:ss")));
+            }
             this->target_speed->setValue(QString::number(
                 ((treadmill *)bluetoothManager->device())->lastRequestedSpeed().value() * unit_conversion, 'f', 1));
             this->target_speed->setSecondLine(QString::number(bluetoothManager->device()->difficult() * 100.0, 'f', 0) +
