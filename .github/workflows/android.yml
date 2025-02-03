@@ -525,7 +525,6 @@ jobs:
 #        with:
 #          path: '${{ github.workspace }}/output/android/'
 #          key: ${{ runner.os }}-QtCache-Android
-    steps:
       - name: Decode Keystore
         id: decode_keystore
         uses: timheuer/base64-to-file@v1
