@@ -527,10 +527,10 @@ jobs:
 #          key: ${{ runner.os }}-QtCache-Android
       - name: Decode Keystore
         id: decode_keystore
-        uses: timheuer/base64-to-file@v1
+        uses: timheuer/base64-to-file@v1.2
         with:
           fileName: 'keystore/your_signing_keystore.jks'
-          encodedString: ${{ secrets.KEYSTORE }}
+          encodedString: ${{ secrets.KEYSTORE_FILE }}
 
       - name: Xvfb install and run
         run: |
