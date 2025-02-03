@@ -541,6 +541,8 @@ jobs:
             echo $ENCODED_STRING | base64 -di > "${TMP_KEYSTORE_FILE_PATH}"/your_keystore_file.jks
             echo "Keystore file decoded"
             echo "Keystore file path: $ENCODED_STRING "
+            echo "Keystore file test: ${{ secrets.KEYSTORE_FILE }} "
+            echo "Keystore file test: ${{ secrets.SIGNING_KEY_ALIAS }} "
 
       - name: Xvfb install and run
         run: |
