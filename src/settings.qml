@@ -1056,6 +1056,52 @@ import QtQuick.Dialogs 1.0
             property string  peloton_lastrefresh: ""
             property string  peloton_expires: ""
             property string  peloton_code: ""
+
+            property bool nordictrack_treadmill_1750_adb: false
+
+            property bool tile_preset_powerzone_1_enabled: false
+            property int tile_preset_powerzone_1_order: 55
+            property real tile_preset_powerzone_1_value: 1.0
+            property string tile_preset_powerzone_1_label: "Zone 1"
+            property string tile_preset_powerzone_1_color: "white"
+
+            property bool tile_preset_powerzone_2_enabled: false
+            property int tile_preset_powerzone_2_order: 56
+            property real tile_preset_powerzone_2_value: 2.0
+            property string tile_preset_powerzone_2_label: "Zone 2"
+            property string tile_preset_powerzone_2_color: "limegreen"
+
+            property bool tile_preset_powerzone_3_enabled: false
+            property int tile_preset_powerzone_3_order: 57
+            property real tile_preset_powerzone_3_value: 3.0
+            property string tile_preset_powerzone_3_label: "Zone 3"
+            property string tile_preset_powerzone_3_color: "gold"
+
+            property bool tile_preset_powerzone_4_enabled: false
+            property int tile_preset_powerzone_4_order: 58
+            property real tile_preset_powerzone_4_value: 4.0
+            property string tile_preset_powerzone_4_label: "Zone 4"
+            property string tile_preset_powerzone_4_color: "orange"
+
+            property bool tile_preset_powerzone_5_enabled: false
+            property int tile_preset_powerzone_5_order: 59
+            property real tile_preset_powerzone_5_value: 5.0
+            property string tile_preset_powerzone_5_label: "Zone 5"
+            property string tile_preset_powerzone_5_color: "darkorange"
+
+            property bool tile_preset_powerzone_6_enabled: false
+            property int tile_preset_powerzone_6_order: 60
+            property real tile_preset_powerzone_6_value: 6.0
+            property string tile_preset_powerzone_6_label: "Zone 6"
+            property string tile_preset_powerzone_6_color: "orangered"
+
+            property bool tile_preset_powerzone_7_enabled: false
+            property int tile_preset_powerzone_7_order: 61
+            property real tile_preset_powerzone_7_value: 7.0
+            property string tile_preset_powerzone_7_label: "Zone 7"
+            property string tile_preset_powerzone_7_color: "red"  
+
+            property bool proform_bike_PFEVEX71316_0: false                  
         }
 
         function paddingZeros(text, limit) {
@@ -3286,7 +3332,8 @@ import QtQuick.Dialogs 1.0
                                     "Proform 225 CSX",
                                     "Proform 325 CSX / Healthrider H30X",
                                     "Proform SB",
-                                    "Nordictrack GX 4.4 Pro"
+                                    "Nordictrack GX 4.4 Pro",
+                                    "TDF 1.0 PFEVEX71316.0",
                                 ]
 
                                 // Initialize when the accordion content becomes visible
@@ -3318,7 +3365,8 @@ import QtQuick.Dialogs 1.0
                                                     settings.proform_bike_225_csx ? 12 :
                                                     settings.proform_bike_325_csx ? 13 :
                                                     settings.proform_bike_sb ? 14 :
-                                                    settings.nordictrack_gx_44_pro ? 15 : 0;
+                                                    settings.nordictrack_gx_44_pro ? 15 :
+                                                    settings.proform_bike_PFEVEX71316_0 ? 16 : 0;
 
                                     console.log("bikeModelComboBox selected model: " + selectedModel);
                                     if (selectedModel >= 0) {
@@ -3348,6 +3396,7 @@ import QtQuick.Dialogs 1.0
                                     settings.proform_bike_325_csx = false;
                                     settings.proform_bike_sb = false;
                                     settings.nordictrack_gx_44_pro = false;
+                                    settings.proform_bike_PFEVEX71316_0 = false;
 
                                     // Set corresponding setting for selected model
                                     switch (currentIndex) {
@@ -3366,6 +3415,7 @@ import QtQuick.Dialogs 1.0
                                         case 13: settings.proform_bike_325_csx = true; break;
                                         case 14: settings.proform_bike_sb = true; break;
                                         case 15: settings.nordictrack_gx_44_pro = true; break;
+                                        case 16: settings.proform_bike_PFEVEX71316_0 = true; break;
                                     }
 
                                     window.settings_restart_to_apply = true;
@@ -6322,6 +6372,7 @@ import QtQuick.Dialogs 1.0
                                     "Proform 505 CST v.80.44",
                                     "Proform Trainer 8.0",
                                     "Proform 705 CST v.80.44",
+                                    "Nordictrack 1750",
                                 ]
 
                                 // Initialize when the accordion content becomes visible
@@ -6383,7 +6434,8 @@ import QtQuick.Dialogs 1.0
                                                     settings.proform_treadmill_1500_pro ? 42 :
                                                     settings.proform_505_cst_80_44 ? 43 :
                                                     settings.proform_trainer_8_0 ? 44 :
-                                                    settings.proform_treadmill_705_cst_V80_44 ? 45 : 0;
+                                                    settings.proform_treadmill_705_cst_V80_44 ? 45 :
+                                                    settings.nordictrack_treadmill_1750_adb ? 46 : 0;
 
                                     console.log("treadmillModelComboBox selected model: " + selectedModel);
                                     if (selectedModel >= 0) {
@@ -6443,6 +6495,7 @@ import QtQuick.Dialogs 1.0
                                     settings.proform_505_cst_80_44 = false;
                                     settings.proform_trainer_8_0 = false;
                                     settings.proform_treadmill_705_cst_V80_44 = false;
+                                    settings.nordictrack_treadmill_1750_adb = false;
 
                                     // Set new setting based on selection
                                     switch (currentIndex) {
@@ -6491,6 +6544,7 @@ import QtQuick.Dialogs 1.0
                                         case 43: settings.proform_505_cst_80_44 = true; break;
                                         case 44: settings.proform_trainer_8_0 = true; break;
                                         case 45: settings.proform_treadmill_705_cst_V80_44 = true; break;
+                                        case 46: settings.nordictrack_treadmill_1750_adb = true; break;
                                     }
 
                                     window.settings_restart_to_apply = true;
