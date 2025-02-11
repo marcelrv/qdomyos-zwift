@@ -1101,7 +1101,8 @@ import QtQuick.Dialogs 1.0
             property string tile_preset_powerzone_7_label: "Zone 7"
             property string tile_preset_powerzone_7_color: "red"  
 
-            property bool proform_bike_PFEVEX71316_0: false                  
+            property bool proform_bike_PFEVEX71316_0: false
+            property bool real_inclination_to_virtual_treamill_bridge: false
         }
 
         function paddingZeros(text, limit) {
@@ -3191,69 +3192,85 @@ import QtQuick.Dialogs 1.0
                         indicatRectColor: Material.color(Material.Grey)
                         textColor: Material.color(Material.Yellow)
                         color: Material.backgroundColor
-                        accordionContent: RowLayout {
-                            spacing: 10
-                            Label {
-                                id: labelDomyosBikeCadenceFilter
-                                text: qsTr("Cadence Filter:")
+                        accordionContent: ColumnLayout {
+                            spacing: 0
+                            RowLayout {
+                                spacing: 10
+                                Label {
+                                    id: labelDomyosBikeCadenceFilter
+                                    text: qsTr("Cadence Filter:")
+                                    Layout.fillWidth: true
+                                }
+                                TextField {
+                                    id: domyosBikeCadenceFilterTextField
+                                    text: settings.domyos_bike_cadence_filter
+                                    horizontalAlignment: Text.AlignRight
+                                    Layout.fillHeight: false
+                                    Layout.alignment: Qt.AlignRight | Qt.AlignVCenter
+                                    inputMethodHints: Qt.ImhDigitsOnly
+                                    onAccepted: settings.domyos_bike_cadence_filter = text
+                                    onActiveFocusChanged: if(this.focus) this.cursorPosition = this.text.length
+                                }
+                                Button {
+                                    id: okDomyosBikeCadenceFilter
+                                    text: "OK"
+                                    Layout.alignment: Qt.AlignRight | Qt.AlignVCenter
+                                    onClicked: { settings.domyos_bike_cadence_filter = domyosBikeCadenceFilterTextField.text; toast.show("Setting saved!"); }
+                                }
+                            }
+                            IndicatorOnlySwitch {
+                                text: qsTr("Ignore FTMS")
+                                spacing: 0
+                                bottomPadding: 0
+                                topPadding: 0
+                                rightPadding: 0
+                                leftPadding: 0
+                                clip: false
+                                checked: settings.domyosbike_notfmts
+                                Layout.alignment: Qt.AlignLeft | Qt.AlignTop
                                 Layout.fillWidth: true
+                                onClicked: settings.domyosbike_notfmts = checked
                             }
-                            TextField {
-                                id: domyosBikeCadenceFilterTextField
-                                text: settings.domyos_bike_cadence_filter
-                                horizontalAlignment: Text.AlignRight
-                                Layout.fillHeight: false
-                                Layout.alignment: Qt.AlignRight | Qt.AlignVCenter
-                                inputMethodHints: Qt.ImhDigitsOnly
-                                onAccepted: settings.domyos_bike_cadence_filter = text
-                                onActiveFocusChanged: if(this.focus) this.cursorPosition = this.text.length
+                            IndicatorOnlySwitch {
+                                text: qsTr("Fix Calories/Km to Console")
+                                spacing: 0
+                                bottomPadding: 0
+                                topPadding: 0
+                                rightPadding: 0
+                                leftPadding: 0
+                                clip: false
+                                checked: settings.domyos_bike_display_calories
+                                Layout.alignment: Qt.AlignLeft | Qt.AlignTop
+                                Layout.fillWidth: true
+                                onClicked: settings.domyos_bike_display_calories = checked
                             }
-                            Button {
-                                id: okDomyosBikeCadenceFilter
-                                text: "OK"
-                                Layout.alignment: Qt.AlignRight | Qt.AlignVCenter
-                                onClicked: { settings.domyos_bike_cadence_filter = domyosBikeCadenceFilterTextField.text; toast.show("Setting saved!"); }
+                            IndicatorOnlySwitch {
+                                text: qsTr("Bike 500 wattage profile")
+                                spacing: 0
+                                bottomPadding: 0
+                                topPadding: 0
+                                rightPadding: 0
+                                leftPadding: 0
+                                clip: false
+                                checked: settings.domyos_bike_500_profile_v1
+                                Layout.alignment: Qt.AlignLeft | Qt.AlignTop
+                                Layout.fillWidth: true
+                                onClicked: { settings.domyos_bike_500_profile_v1 = checked; settings.domyos_bike_500_profile_v2 = false; }
+                            }
+                            IndicatorOnlySwitch {
+                                text: qsTr("Bike 500 wattage profile v2")
+                                spacing: 0
+                                bottomPadding: 0
+                                topPadding: 0
+                                rightPadding: 0
+                                leftPadding: 0
+                                clip: false
+                                checked: settings.domyos_bike_500_profile_v2
+                                Layout.alignment: Qt.AlignLeft | Qt.AlignTop
+                                Layout.fillWidth: true
+                                onClicked: { settings.domyos_bike_500_profile_v2 = checked; settings.domyos_bike_500_profile_v1 = false; }
                             }
                         }
-                        IndicatorOnlySwitch {
-                            text: qsTr("Fix Calories/Km to Console")
-                            spacing: 0
-                            bottomPadding: 0
-                            topPadding: 0
-                            rightPadding: 0
-                            leftPadding: 0
-                            clip: false
-                            checked: settings.domyos_bike_display_calories
-                            Layout.alignment: Qt.AlignLeft | Qt.AlignTop
-                            Layout.fillWidth: true
-                            onClicked: settings.domyos_bike_display_calories = checked
-                        }
-                        IndicatorOnlySwitch {
-                            text: qsTr("Bike 500 wattage profile")
-                            spacing: 0
-                            bottomPadding: 0
-                            topPadding: 0
-                            rightPadding: 0
-                            leftPadding: 0
-                            clip: false
-                            checked: settings.domyos_bike_500_profile_v1
-                            Layout.alignment: Qt.AlignLeft | Qt.AlignTop
-                            Layout.fillWidth: true
-                            onClicked: { settings.domyos_bike_500_profile_v1 = checked; settings.domyos_bike_500_profile_v2 = false; }
-                        }
-                        IndicatorOnlySwitch {
-                            text: qsTr("Bike 500 wattage profile v2")
-                            spacing: 0
-                            bottomPadding: 0
-                            topPadding: 0
-                            rightPadding: 0
-                            leftPadding: 0
-                            clip: false
-                            checked: settings.domyos_bike_500_profile_v2
-                            Layout.alignment: Qt.AlignLeft | Qt.AlignTop
-                            Layout.fillWidth: true
-                            onClicked: { settings.domyos_bike_500_profile_v2 = checked; settings.domyos_bike_500_profile_v1 = false; }
-                        }                    
                     }                
                     AccordionElement {
                         title: qsTr("Tacx Neo Options")
@@ -8897,6 +8914,35 @@ import QtQuick.Dialogs 1.0
                         Layout.fillWidth: true
                         color: Material.color(Material.Lime)
                     }
+
+
+                    IndicatorOnlySwitch {
+                        text: qsTr("Send real inclination to virtual bridge")
+                        spacing: 0
+                        bottomPadding: 0
+                        topPadding: 0
+                        rightPadding: 0
+                        leftPadding: 0
+                        clip: false
+                        checked: settings.real_inclination_to_virtual_treamill_bridge
+                        Layout.alignment: Qt.AlignLeft | Qt.AlignTop
+                        Layout.fillWidth: true
+                        onClicked: settings.real_inclination_to_virtual_treamill_bridge = checked
+                    }
+
+                    Label {
+                        text: qsTr("By default QZ sends to the virtual bluetooth/dircon bridge the current inclination of the treadmill. Enabling this, it will send instead the one wihtout considering inclination gain or offset. Default: False.")
+                        font.bold: true
+                        font.italic: true
+                        font.pixelSize: Qt.application.font.pixelSize - 2
+                        textFormat: Text.PlainText
+                        wrapMode: Text.WordWrap
+                        verticalAlignment: Text.AlignVCenter
+                        Layout.alignment: Qt.AlignLeft | Qt.AlignTop
+                        Layout.fillWidth: true
+                        color: Material.color(Material.Lime)
+                    }
+
 
                     IndicatorOnlySwitch {
                         text: qsTr("Disable Wattage from Machinery")
